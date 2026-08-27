@@ -1,7 +1,7 @@
 import AppKit
 @preconcurrency import AVFoundation
 import CoreFoundation
-import CoreImage
+@preconcurrency import CoreImage
 import ImageIO
 import OSLog
 import QRScannerCore
@@ -29,6 +29,7 @@ public enum CameraScanner {
 }
 
 enum CameraFrameProcessor {
+  // CIContext supports cross-thread reuse, but the Xcode 16 SDK predates its Sendable annotation.
   private static let imageContext = CIContext(options: [.cacheIntermediates: false])
 
   struct Detection: Equatable, Sendable {
