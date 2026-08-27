@@ -6,11 +6,13 @@ This project is pre-release software intended for macOS Raycast users. The sourc
 
 ## Commands
 
-- **Scan QR from Camera** opens a floating native camera preview and closes it when a QR code is detected.
+- **Scan QR from Camera** opens a floating native camera preview. Detection freezes the matched frame, highlights each QR code for one second, then closes only the camera panel and shows the results in Raycast.
 - **Scan QR from Screen** captures each connected display once and returns every QR code it finds.
 - **Scan QR from Clipboard** reads copied images without requiring Screen Recording access.
 
 Every result remains in Raycast until you explicitly open or copy it. This prevents an untrusted QR code from triggering a network request or launching another application without confirmation. Wi-Fi payloads show their parsed fields and provide separate copy actions. Duplicate payloads found on more than one display are shown once.
+
+The camera preview is a nonactivating macOS panel: it stays visible without taking focus from Raycast. This preserves the Raycast view that receives and displays the native scan result.
 
 ## Privacy and permissions
 
@@ -31,7 +33,7 @@ Opening a recognized `http`, `https`, `mailto`, or `tel` payload is always a sep
 
 ## Install for development
 
-1. Run `npm install` in this directory.
+1. Run `npm ci` in this directory. Use `npm install` only when intentionally changing dependencies and the lockfile.
 2. In Raycast, run **Import Extension** and select this directory.
 3. Run `npm run dev`, or start development from Raycast's **Manage Extensions** command.
 
@@ -45,20 +47,27 @@ To uninstall a development copy, open **Manage Extensions** in Raycast, select *
 npm run check
 ```
 
-The full check lints, runs TypeScript and Swift tests, builds the extension, and audits production dependencies at high severity. TypeScript tests write JSON to `test-results/vitest.json`; Swift tests write xUnit XML to `test-results/swift.xml`. Swift tests generate a real QR image with Core Image and verify that Vision decodes it, plus a QR-free image for the adverse path.
+The full check lints, runs TypeScript and Swift tests, builds the extension, and audits production dependencies at high severity. TypeScript tests write JSON to `test-results/vitest.json`; Swift tests write xUnit XML to `test-results/swift.xml`. Swift tests generate real QR images with Core Image and pass BGRA `CMSampleBuffer` frames through Vision. The matrix covers rotation, mirroring, apparent distance, QR-free frames, bounding boxes, frozen-frame generation, aspect-fill overlay coordinates, and the nonactivating camera panel contract.
 
 Stop `npm run dev` and wait for its native build to finish before running `npm run build` or `npm run check`. Raycast debug and release builds share one Xcode build database; the prebuild guard fails with an actionable error instead of allowing concurrent builds to produce a misleading package-import failure.
 
 ## Architecture
 
-The TypeScript entry points share result classification and Raycast UI in `src/`. The Swift executable package in `swift/` owns protected macOS APIs:
+The TypeScript entry points share result classification and Raycast UI in `src/`. The Swift package in `swift/` separates portable QR contracts, macOS integrations, and the Raycast executable bridge:
 
-- Camera: `AVCaptureSession` and `AVCaptureMetadataOutput`, with an `NSPanel` preview.
-- Screen: `SCShareableContent` and `SCScreenshotManager` per display.
-- Clipboard: `NSPasteboard` and `NSImage`.
-- Image decoding: one `VNDetectBarcodesRequest` implementation restricted to QR symbology.
+- `QRScannerCore`: `ScanResult`, stable error codes, and one `VNDetectBarcodesRequest` implementation restricted to QR symbology.
+- `QRScannerMac`: camera, screen, and clipboard capture plus the native camera panel.
+- `QRScannerNative`: `@raycast` entry points that return core results through the generated bridge.
+
+Camera capture uses `AVCaptureSession` and `AVCaptureVideoDataOutput` to produce BGRA `CMSampleBuffer` frames. Vision detects QR payloads and normalized bounds, and an `NSPanel` presents the live and one-second success states. Screen capture uses `SCShareableContent` and `SCScreenshotManager`; clipboard capture uses `NSPasteboard` and `NSImage`.
 
 The native boundary returns structured JSON through Raycast's official [`extensions-swift-tools`](https://github.com/raycast/extensions-swift-tools) bridge. Permission denial, restricted camera access, missing hardware, empty clipboard, image conversion failure, and no QR result remain distinct errors.
+
+Detailed implementation and verification references:
+
+- [Architecture and data flow](docs/architecture.md)
+- [Testing and acceptance](docs/testing.md)
+- [Troubleshooting and privacy-safe diagnostics](docs/troubleshooting.md)
 
 ## Project policies
 
