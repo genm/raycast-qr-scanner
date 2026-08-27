@@ -1,5 +1,6 @@
 import AppKit
 @preconcurrency import AVFoundation
+import ImageIO
 import QuartzCore
 
 enum CameraScanner {
@@ -20,6 +21,16 @@ enum CameraScanner {
     }
 
     return try await CameraScanController.run()
+  }
+}
+
+enum CameraFrameProcessor {
+  static func scan(
+    sampleBuffer: CMSampleBuffer,
+    orientation: CGImagePropertyOrientation = .up
+  ) throws -> [ScanResult] {
+    try QRDecoder.decode(sampleBuffer: sampleBuffer, orientation: orientation)
+      .map { ScanResult(value: $0, source: .camera) }
   }
 }
 
@@ -82,6 +93,11 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     }
     session.addInput(input)
     session.addOutput(videoOutput)
+    if let connection = videoOutput.connection(with: .video), connection.isVideoMirroringSupported {
+      // Vision needs the actual QR module layout; an automatically mirrored camera frame is no longer decodable.
+      connection.automaticallyAdjustsVideoMirroring = false
+      connection.isVideoMirrored = false
+    }
     session.commitConfiguration()
 
     let notificationCenter = NotificationCenter.default
@@ -161,12 +177,15 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     didOutput sampleBuffer: CMSampleBuffer,
     from connection: AVCaptureConnection
   ) {
-    let result = Result { try QRDecoder.decode(sampleBuffer: sampleBuffer) }
+    let orientation: CGImagePropertyOrientation = connection.isVideoMirrored ? .upMirrored : .up
+    let result = Result {
+      try CameraFrameProcessor.scan(sampleBuffer: sampleBuffer, orientation: orientation)
+    }
 
     Task { @MainActor [weak self] in
       switch result {
-      case let .success(values) where !values.isEmpty:
-        self?.finish(.success(values.map { ScanResult(value: $0, source: .camera) }))
+      case let .success(results) where !results.isEmpty:
+        self?.finish(.success(results))
       case .success:
         break
       case let .failure(error):

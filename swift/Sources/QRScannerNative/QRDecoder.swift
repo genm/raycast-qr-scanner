@@ -1,5 +1,6 @@
 import CoreGraphics
 import CoreMedia
+import ImageIO
 import Vision
 
 enum QRDecoder {
@@ -13,11 +14,14 @@ enum QRDecoder {
     return (request.results ?? []).compactMap(\.payloadStringValue)
   }
 
-  static func decode(sampleBuffer: CMSampleBuffer) throws -> [String] {
+  static func decode(
+    sampleBuffer: CMSampleBuffer,
+    orientation: CGImagePropertyOrientation = .up
+  ) throws -> [String] {
     let request = VNDetectBarcodesRequest()
     request.symbologies = [.qr]
 
-    let handler = VNImageRequestHandler(cmSampleBuffer: sampleBuffer, orientation: .up)
+    let handler = VNImageRequestHandler(cmSampleBuffer: sampleBuffer, orientation: orientation)
     try handler.perform([request])
 
     return (request.results ?? []).compactMap(\.payloadStringValue)
