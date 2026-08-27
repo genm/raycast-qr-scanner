@@ -1,6 +1,8 @@
 import AppKit
 @preconcurrency import AVFoundation
+import CoreFoundation
 import ImageIO
+import OSLog
 import QuartzCore
 
 enum CameraScanner {
@@ -34,6 +36,34 @@ enum CameraFrameProcessor {
   }
 }
 
+private enum CameraDiagnostics {
+  static let logger = Logger(subsystem: "com.genm.qr-scanner", category: "camera")
+}
+
+// The nested AppKit run loop occupies its main-dispatch block, so enqueue UI work on the run loop itself.
+private func performOnMainRunLoop(_ action: @escaping @MainActor () -> Void) {
+  let mainRunLoop = CFRunLoopGetMain()
+  CFRunLoopPerformBlock(mainRunLoop, CFRunLoopMode.commonModes.rawValue) {
+    MainActor.assumeIsolated {
+      action()
+    }
+  }
+  CFRunLoopWakeUp(mainRunLoop)
+}
+
+private final class CameraFrameDeliveryState: @unchecked Sendable {
+  private let lock = NSLock()
+  private var receivedFirstFrame = false
+
+  func markFrameReceived() -> Bool {
+    lock.withLock {
+      guard !receivedFirstFrame else { return false }
+      receivedFirstFrame = true
+      return true
+    }
+  }
+}
+
 @MainActor
 private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, NSWindowDelegate {
   private static var activeController: CameraScanController?
@@ -41,7 +71,9 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
   private let session = AVCaptureSession()
   private let sessionQueue = DispatchQueue(label: "com.genm.qr-scanner.camera-session")
   private let metadataQueue = DispatchQueue(label: "com.genm.qr-scanner.camera-metadata")
+  private let frameDeliveryState = CameraFrameDeliveryState()
   private var panel: NSPanel?
+  private weak var instructionLabel: NSTextField?
   private var notificationTokens: [NSObjectProtocol] = []
   private var continuation: CheckedContinuation<[ScanResult], Error>?
   private var didFinish = false
@@ -70,7 +102,7 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
         }
       }
     } onCancel: {
-      Task { @MainActor in
+      performOnMainRunLoop {
         activeController?.finish(.failure(CancellationError()))
       }
     }
@@ -84,6 +116,10 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     let input = try AVCaptureDeviceInput(device: camera)
     let videoOutput = AVCaptureVideoDataOutput()
     videoOutput.alwaysDiscardsLateVideoFrames = true
+    // Keep production frames identical to the BGRA CMSampleBuffer exercised in hosted CI.
+    videoOutput.videoSettings = [
+      kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+    ]
     videoOutput.setSampleBufferDelegate(self, queue: metadataQueue)
 
     session.beginConfiguration()
@@ -104,18 +140,20 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     notificationTokens.append(notificationCenter.addObserver(
       forName: .AVCaptureSessionRuntimeError,
       object: session,
-      queue: .main
+      queue: nil
     ) { [weak self] _ in
-      Task { @MainActor [weak self] in
+      CameraDiagnostics.logger.error("Camera capture session reported a runtime error")
+      performOnMainRunLoop { [weak self] in
         self?.finish(.failure(ScanError.cameraConfigurationFailed))
       }
     })
     notificationTokens.append(notificationCenter.addObserver(
       forName: .AVCaptureSessionWasInterrupted,
       object: session,
-      queue: .main
+      queue: nil
     ) { [weak self] _ in
-      Task { @MainActor [weak self] in
+      CameraDiagnostics.logger.error("Camera capture session was interrupted")
+      performOnMainRunLoop { [weak self] in
         self?.finish(.failure(ScanError.cameraInterrupted))
       }
     })
@@ -128,6 +166,7 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     panel.makeKeyAndOrderFront(nil)
 
     sessionQueue.async { [session] in
+      CameraDiagnostics.logger.info("Starting camera capture session")
       session.startRunning()
     }
   }
@@ -141,6 +180,8 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     )
     panel.title = "Scan QR Code"
     panel.level = .floating
+    // Raycast or another app may become active while the user positions a QR code; keep the preview visible.
+    panel.hidesOnDeactivate = false
     panel.isReleasedWhenClosed = false
     panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
     panel.delegate = self
@@ -161,6 +202,7 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     instruction.backgroundColor = NSColor.black.withAlphaComponent(0.65)
     instruction.drawsBackground = true
     instruction.translatesAutoresizingMaskIntoConstraints = false
+    instructionLabel = instruction
     contentView.addSubview(instruction)
     NSLayoutConstraint.activate([
       instruction.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
@@ -177,19 +219,34 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     didOutput sampleBuffer: CMSampleBuffer,
     from connection: AVCaptureConnection
   ) {
-    let orientation: CGImagePropertyOrientation = connection.isVideoMirrored ? .upMirrored : .up
-    let result = Result {
-      try CameraFrameProcessor.scan(sampleBuffer: sampleBuffer, orientation: orientation)
+    if frameDeliveryState.markFrameReceived() {
+      if let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+        let width = CVPixelBufferGetWidth(imageBuffer)
+        let height = CVPixelBufferGetHeight(imageBuffer)
+        let pixelFormat = CVPixelBufferGetPixelFormatType(imageBuffer)
+        CameraDiagnostics.logger.info(
+          "Received first camera frame: width=\(width), height=\(height), pixelFormat=\(pixelFormat)"
+        )
+      } else {
+        CameraDiagnostics.logger.error("Received camera sample without an image buffer")
+      }
+      performOnMainRunLoop { [weak self] in
+        self?.instructionLabel?.stringValue = "Camera active — looking for QR code…"
+      }
     }
 
-    Task { @MainActor [weak self] in
-      switch result {
-      case let .success(results) where !results.isEmpty:
+    let orientation: CGImagePropertyOrientation = connection.isVideoMirrored ? .upMirrored : .up
+    do {
+      let results = try CameraFrameProcessor.scan(sampleBuffer: sampleBuffer, orientation: orientation)
+      guard !results.isEmpty else { return }
+      CameraDiagnostics.logger.info("Detected \(results.count) QR code(s)")
+      performOnMainRunLoop { [weak self] in
         self?.finish(.success(results))
-      case .success:
-        break
-      case let .failure(error):
-        self?.finish(.failure(error))
+      }
+    } catch {
+      CameraDiagnostics.logger.error("Vision failed to process a camera frame: \(String(describing: error))")
+      performOnMainRunLoop { [weak self] in
+        self?.finish(.failure(ScanError.imageConversionFailed))
       }
     }
   }
@@ -201,11 +258,18 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
   private func finish(_ result: Result<[ScanResult], Error>) {
     guard !didFinish else { return }
     didFinish = true
+    switch result {
+    case let .success(results):
+      CameraDiagnostics.logger.info("Finishing camera scan with \(results.count) result(s)")
+    case let .failure(error):
+      CameraDiagnostics.logger.error("Finishing camera scan with error: \(String(describing: error))")
+    }
 
     let continuation = continuation
     self.continuation = nil
     let panel = panel
     self.panel = nil
+    instructionLabel = nil
     panel?.delegate = nil
     panel?.orderOut(nil)
     notificationTokens.forEach(NotificationCenter.default.removeObserver)
