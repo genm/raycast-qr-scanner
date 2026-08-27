@@ -1,3 +1,4 @@
+import AppKit
 import CoreImage
 import CoreImage.CIFilterBuiltins
 import CoreGraphics
@@ -7,6 +8,10 @@ import XCTest
 @testable import QRScannerNative
 
 final class QRDecoderTests: XCTestCase {
+  func testCameraPanelDoesNotDeactivateRaycast() {
+    XCTAssertTrue(CameraPanelPresentation.styleMask.contains(.nonactivatingPanel))
+  }
+
   func testDecodesGeneratedQRCode() throws {
     let message = "https://example.test/from-generated-qr"
     let filter = CIFilter.qrCodeGenerator()

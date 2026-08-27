@@ -93,6 +93,11 @@ enum CameraOverlayGeometry {
   }
 }
 
+enum CameraPanelPresentation {
+  // A nonactivating panel keeps Raycast's view command alive so it can render the returned scan results.
+  static let styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .nonactivatingPanel]
+}
+
 private enum CameraDiagnostics {
   static let logger = Logger(subsystem: "com.genm.qr-scanner", category: "camera")
 }
@@ -232,8 +237,7 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     self.panel = panel
     let application = NSApplication.shared
     application.setActivationPolicy(.accessory)
-    application.activate(ignoringOtherApps: true)
-    panel.makeKeyAndOrderFront(nil)
+    panel.orderFrontRegardless()
 
     sessionQueue.async { [session] in
       CameraDiagnostics.logger.info("Starting camera capture session")
@@ -244,7 +248,7 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
   private func makePanel(previewing session: AVCaptureSession) -> NSPanel {
     let panel = NSPanel(
       contentRect: CGRect(x: 0, y: 0, width: 560, height: 420),
-      styleMask: [.titled, .closable, .miniaturizable],
+      styleMask: CameraPanelPresentation.styleMask,
       backing: .buffered,
       defer: false
     )
