@@ -1,0 +1,52 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "qr-scanner",
+  "title": "QR Scanner",
+  "description": "Scan QR codes with your camera, from your screens, or from a clipboard image",
+  "icon": "extension-icon.png",
+  "author": "genm",
+  "license": "MIT",
+  "platforms": ["macOS"],
+  "commands": [
+    {
+      "name": "scan-camera",
+      "title": "Scan QR from Camera",
+      "description": "Open a camera preview and scan a QR code",
+      "mode": "view"
+    },
+    {
+      "name": "scan-screen",
+      "title": "Scan QR from Screen",
+      "description": "Find QR codes visible on any connected display",
+      "mode": "view"
+    },
+    {
+      "name": "scan-clipboard",
+      "title": "Scan QR from Clipboard",
+      "description": "Find QR codes in copied images",
+      "mode": "view"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "2.1.0",
+    "@raycast/utils": "2.3.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "2.2.0",
+    "@types/node": "22.19.17",
+    "@types/react": "19.0.10",
+    "eslint": "10.0.3",
+    "prettier": "3.9.0",
+    "react-devtools": "6.1.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
+  },
+  "scripts": {
+    "build": "ray build -e dist",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "test": "vitest run --reporter=json --outputFile=test-results/vitest.json",
+    "test:swift": "mkdir -p test-results && swift test --package-path swift --parallel --xunit-output test-results/swift.xml"
+  }
+}

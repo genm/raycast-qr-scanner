@@ -1,0 +1,13 @@
+node_modules/
+dist/
+test-results/
+.DS_Store
+
+# Raycast generated files
+raycast-env.d.ts
+.raycast-swift-build/
+compiled_raycast_swift/
+
+# SwiftPM generated files
+swift/.build/
+swift/.swiftpm/
