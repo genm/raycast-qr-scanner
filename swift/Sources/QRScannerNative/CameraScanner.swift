@@ -1,6 +1,7 @@
 import AppKit
 @preconcurrency import AVFoundation
 import CoreFoundation
+import CoreImage
 import ImageIO
 import OSLog
 import QuartzCore
@@ -27,12 +28,33 @@ enum CameraScanner {
 }
 
 enum CameraFrameProcessor {
+  private static let imageContext = CIContext(options: [.cacheIntermediates: false])
+
+  struct Detection: Equatable, Sendable {
+    let result: ScanResult
+    let boundingBox: CGRect
+  }
+
   static func scan(
     sampleBuffer: CMSampleBuffer,
     orientation: CGImagePropertyOrientation = .up
   ) throws -> [ScanResult] {
-    try QRDecoder.decode(sampleBuffer: sampleBuffer, orientation: orientation)
-      .map { ScanResult(value: $0, source: .camera) }
+    try detect(sampleBuffer: sampleBuffer, orientation: orientation).map(\.result)
+  }
+
+  static func detect(
+    sampleBuffer: CMSampleBuffer,
+    orientation: CGImagePropertyOrientation = .up
+  ) throws -> [Detection] {
+    try QRDecoder.detect(sampleBuffer: sampleBuffer, orientation: orientation).map {
+      Detection(result: ScanResult(value: $0.value, source: .camera), boundingBox: $0.boundingBox)
+    }
+  }
+
+  static func makeFrozenFrame(sampleBuffer: CMSampleBuffer) -> CGImage? {
+    guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
+    let image = CIImage(cvPixelBuffer: imageBuffer)
+    return imageContext.createCGImage(image, from: image.extent)
   }
 }
 
@@ -51,14 +73,23 @@ private func performOnMainRunLoop(_ action: @escaping @MainActor () -> Void) {
   CFRunLoopWakeUp(mainRunLoop)
 }
 
-private final class CameraFrameDeliveryState: @unchecked Sendable {
+private final class CameraFrameState: @unchecked Sendable {
   private let lock = NSLock()
   private var receivedFirstFrame = false
+  private var detectedQRCode = false
 
   func markFrameReceived() -> Bool {
     lock.withLock {
       guard !receivedFirstFrame else { return false }
       receivedFirstFrame = true
+      return true
+    }
+  }
+
+  func claimDetection() -> Bool {
+    lock.withLock {
+      guard !detectedQRCode else { return false }
+      detectedQRCode = true
       return true
     }
   }
@@ -71,9 +102,13 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
   private let session = AVCaptureSession()
   private let sessionQueue = DispatchQueue(label: "com.genm.qr-scanner.camera-session")
   private let metadataQueue = DispatchQueue(label: "com.genm.qr-scanner.camera-metadata")
-  private let frameDeliveryState = CameraFrameDeliveryState()
+  private let frameState = CameraFrameState()
   private var panel: NSPanel?
   private weak var instructionLabel: NSTextField?
+  private var previewLayer: AVCaptureVideoPreviewLayer?
+  private var frozenFrameLayer: CALayer?
+  private var successLayers: [CAShapeLayer] = []
+  private var successTimer: Timer?
   private var notificationTokens: [NSObjectProtocol] = []
   private var continuation: CheckedContinuation<[ScanResult], Error>?
   private var didFinish = false
@@ -195,6 +230,7 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     previewLayer.videoGravity = .resizeAspectFill
     previewLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
     contentView.layer = previewLayer
+    self.previewLayer = previewLayer
 
     let instruction = NSTextField(labelWithString: "Hold a QR code in front of the camera")
     instruction.alignment = .center
@@ -219,7 +255,7 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     didOutput sampleBuffer: CMSampleBuffer,
     from connection: AVCaptureConnection
   ) {
-    if frameDeliveryState.markFrameReceived() {
+    if frameState.markFrameReceived() {
       if let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
         let width = CVPixelBufferGetWidth(imageBuffer)
         let height = CVPixelBufferGetHeight(imageBuffer)
@@ -237,11 +273,12 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
 
     let orientation: CGImagePropertyOrientation = connection.isVideoMirrored ? .upMirrored : .up
     do {
-      let results = try CameraFrameProcessor.scan(sampleBuffer: sampleBuffer, orientation: orientation)
-      guard !results.isEmpty else { return }
-      CameraDiagnostics.logger.info("Detected \(results.count) QR code(s)")
+      let detections = try CameraFrameProcessor.detect(sampleBuffer: sampleBuffer, orientation: orientation)
+      guard !detections.isEmpty, frameState.claimDetection() else { return }
+      let frozenFrame = CameraFrameProcessor.makeFrozenFrame(sampleBuffer: sampleBuffer)
+      CameraDiagnostics.logger.info("Detected \(detections.count) QR code(s)")
       performOnMainRunLoop { [weak self] in
-        self?.finish(.success(results))
+        self?.showDetectionSuccess(detections, frozenFrame: frozenFrame)
       }
     } catch {
       CameraDiagnostics.logger.error("Vision failed to process a camera frame: \(String(describing: error))")
@@ -249,6 +286,75 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
         self?.finish(.failure(ScanError.imageConversionFailed))
       }
     }
+  }
+
+  private func showDetectionSuccess(
+    _ detections: [CameraFrameProcessor.Detection],
+    frozenFrame: CGImage?
+  ) {
+    guard !didFinish, let previewLayer else { return }
+
+    instructionLabel?.stringValue = detections.count == 1 ? "QR code detected" : "\(detections.count) QR codes detected"
+    instructionLabel?.textColor = NSColor(calibratedRed: 0.7, green: 0.95, blue: 1, alpha: 1)
+    instructionLabel?.backgroundColor = NSColor(calibratedRed: 0.02, green: 0.18, blue: 0.28, alpha: 0.82)
+
+    if let frozenFrame {
+      let layer = CALayer()
+      layer.frame = previewLayer.bounds
+      layer.contents = frozenFrame
+      layer.contentsGravity = .resizeAspectFill
+      layer.masksToBounds = true
+      layer.zPosition = 5
+      previewLayer.addSublayer(layer)
+      frozenFrameLayer = layer
+    }
+
+    sessionQueue.async { [session] in
+      if session.isRunning {
+        session.stopRunning()
+      }
+    }
+
+    successLayers = detections.map { detection in
+      // Vision uses a lower-left origin; AVCapture metadata coordinates use an upper-left origin.
+      let metadataRect = CGRect(
+        x: detection.boundingBox.minX,
+        y: 1 - detection.boundingBox.maxY,
+        width: detection.boundingBox.width,
+        height: detection.boundingBox.height
+      )
+      let detectedRect = previewLayer.layerRectConverted(fromMetadataOutputRect: metadataRect)
+        .insetBy(dx: -7, dy: -7)
+        .intersection(previewLayer.bounds)
+      let highlight = CAShapeLayer()
+      highlight.path = CGPath(roundedRect: detectedRect, cornerWidth: 12, cornerHeight: 12, transform: nil)
+      highlight.fillColor = NSColor.systemCyan.withAlphaComponent(0.08).cgColor
+      highlight.strokeColor = NSColor(calibratedRed: 0.65, green: 0.95, blue: 1, alpha: 1).cgColor
+      highlight.lineWidth = 4
+      highlight.shadowColor = NSColor.systemCyan.cgColor
+      highlight.shadowOpacity = 1
+      highlight.shadowRadius = 12
+      highlight.zPosition = 20
+      previewLayer.addSublayer(highlight)
+
+      let pulse = CABasicAnimation(keyPath: "opacity")
+      pulse.fromValue = 0.35
+      pulse.toValue = 1
+      pulse.duration = 0.16
+      pulse.autoreverses = true
+      pulse.repeatCount = 1
+      highlight.add(pulse, forKey: "successPulse")
+      return highlight
+    }
+
+    let results = detections.map(\.result)
+    let timer = Timer(timeInterval: 1, repeats: false) { [weak self] _ in
+      MainActor.assumeIsolated {
+        self?.finish(.success(results))
+      }
+    }
+    successTimer = timer
+    RunLoop.main.add(timer, forMode: .common)
   }
 
   func windowWillClose(_ notification: Notification) {
@@ -270,6 +376,13 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     let panel = panel
     self.panel = nil
     instructionLabel = nil
+    successTimer?.invalidate()
+    successTimer = nil
+    successLayers.forEach { $0.removeFromSuperlayer() }
+    successLayers.removeAll()
+    frozenFrameLayer?.removeFromSuperlayer()
+    frozenFrameLayer = nil
+    previewLayer = nil
     panel?.delegate = nil
     panel?.orderOut(nil)
     notificationTokens.forEach(NotificationCenter.default.removeObserver)

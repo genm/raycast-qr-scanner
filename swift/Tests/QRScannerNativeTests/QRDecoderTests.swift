@@ -50,6 +50,26 @@ final class QRDecoderTests: XCTestCase {
     )
   }
 
+  func testCameraPipelineReturnsDetectedQRCodeBounds() throws {
+    let message = "https://example.test/camera-bounds"
+    let sampleBuffer = try makeCameraSampleBuffer(
+      qrCode: makeQRCode(message: message),
+      width: 1_280,
+      height: 720,
+      qrFrameRatio: 0.5
+    )
+
+    let detection = try XCTUnwrap(CameraFrameProcessor.detect(sampleBuffer: sampleBuffer).first)
+    XCTAssertEqual(detection.result, ScanResult(value: message, source: .camera))
+    XCTAssertTrue(detection.boundingBox.contains(CGPoint(x: 0.5, y: 0.5)))
+    XCTAssertGreaterThan(detection.boundingBox.width, 0.2)
+    XCTAssertGreaterThan(detection.boundingBox.height, 0.2)
+
+    let frozenFrame = try XCTUnwrap(CameraFrameProcessor.makeFrozenFrame(sampleBuffer: sampleBuffer))
+    XCTAssertEqual(frozenFrame.width, 1_280)
+    XCTAssertEqual(frozenFrame.height, 720)
+  }
+
   func testCameraPipelineDecodesRotatedQRCodes() throws {
     let message = "https://example.test/rotated-camera-frame"
     let qrCode = try makeQRCode(message: message)
