@@ -58,6 +58,41 @@ enum CameraFrameProcessor {
   }
 }
 
+enum CameraOverlayGeometry {
+  static func rect(
+    for visionBounds: CGRect,
+    imageSize: CGSize,
+    in destinationBounds: CGRect,
+    destinationIsFlipped: Bool = false
+  ) -> CGRect {
+    guard imageSize.width > 0, imageSize.height > 0,
+          destinationBounds.width > 0, destinationBounds.height > 0
+    else { return .null }
+
+    let scale = max(
+      destinationBounds.width / imageSize.width,
+      destinationBounds.height / imageSize.height
+    )
+    let displayedSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+    let displayedOrigin = CGPoint(
+      x: destinationBounds.midX - displayedSize.width / 2,
+      y: destinationBounds.midY - displayedSize.height / 2
+    )
+
+    // Vision uses a lower-left origin. Convert only when AppKit reports a flipped destination layer.
+    var rect = CGRect(
+      x: displayedOrigin.x + visionBounds.minX * displayedSize.width,
+      y: displayedOrigin.y + visionBounds.minY * displayedSize.height,
+      width: visionBounds.width * displayedSize.width,
+      height: visionBounds.height * displayedSize.height
+    )
+    if destinationIsFlipped {
+      rect.origin.y = destinationBounds.minY + destinationBounds.maxY - rect.maxY
+    }
+    return rect
+  }
+}
+
 private enum CameraDiagnostics {
   static let logger = Logger(subsystem: "com.genm.qr-scanner", category: "camera")
 }
@@ -276,9 +311,12 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
       let detections = try CameraFrameProcessor.detect(sampleBuffer: sampleBuffer, orientation: orientation)
       guard !detections.isEmpty, frameState.claimDetection() else { return }
       let frozenFrame = CameraFrameProcessor.makeFrozenFrame(sampleBuffer: sampleBuffer)
+      let frameSize = CMSampleBufferGetImageBuffer(sampleBuffer).map {
+        CGSize(width: CVPixelBufferGetWidth($0), height: CVPixelBufferGetHeight($0))
+      } ?? .zero
       CameraDiagnostics.logger.info("Detected \(detections.count) QR code(s)")
       performOnMainRunLoop { [weak self] in
-        self?.showDetectionSuccess(detections, frozenFrame: frozenFrame)
+        self?.showDetectionSuccess(detections, frozenFrame: frozenFrame, frameSize: frameSize)
       }
     } catch {
       CameraDiagnostics.logger.error("Vision failed to process a camera frame: \(String(describing: error))")
@@ -290,7 +328,8 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
 
   private func showDetectionSuccess(
     _ detections: [CameraFrameProcessor.Detection],
-    frozenFrame: CGImage?
+    frozenFrame: CGImage?,
+    frameSize: CGSize
   ) {
     guard !didFinish, let previewLayer else { return }
 
@@ -316,14 +355,12 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     }
 
     successLayers = detections.map { detection in
-      // Vision uses a lower-left origin; AVCapture metadata coordinates use an upper-left origin.
-      let metadataRect = CGRect(
-        x: detection.boundingBox.minX,
-        y: 1 - detection.boundingBox.maxY,
-        width: detection.boundingBox.width,
-        height: detection.boundingBox.height
+      let detectedRect = CameraOverlayGeometry.rect(
+        for: detection.boundingBox,
+        imageSize: frameSize,
+        in: previewLayer.bounds,
+        destinationIsFlipped: previewLayer.isGeometryFlipped
       )
-      let detectedRect = previewLayer.layerRectConverted(fromMetadataOutputRect: metadataRect)
         .insetBy(dx: -7, dy: -7)
         .intersection(previewLayer.bounds)
       let highlight = CAShapeLayer()

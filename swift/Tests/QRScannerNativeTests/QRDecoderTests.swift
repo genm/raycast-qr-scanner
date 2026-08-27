@@ -70,6 +70,45 @@ final class QRDecoderTests: XCTestCase {
     XCTAssertEqual(frozenFrame.height, 720)
   }
 
+  func testCameraOverlayMatchesAspectFillWithoutFlippingVisionCoordinates() {
+    let destination = CGRect(x: 0, y: 0, width: 560, height: 420)
+    let normalizedBounds = CGRect(x: 0.375, y: 0.25, width: 0.25, height: 0.5)
+
+    let overlay = CameraOverlayGeometry.rect(
+      for: normalizedBounds,
+      imageSize: CGSize(width: 1_280, height: 720),
+      in: destination
+    )
+
+    XCTAssertEqual(overlay.minX, 186.666_666, accuracy: 0.001)
+    XCTAssertEqual(overlay.minY, 105, accuracy: 0.001)
+    XCTAssertEqual(overlay.width, 186.666_666, accuracy: 0.001)
+    XCTAssertEqual(overlay.height, 210, accuracy: 0.001)
+  }
+
+  func testCameraOverlayKeepsVisionTopAtLayerTop() {
+    let overlay = CameraOverlayGeometry.rect(
+      for: CGRect(x: 0.1, y: 0.8, width: 0.1, height: 0.1),
+      imageSize: CGSize(width: 1_000, height: 1_000),
+      in: CGRect(x: 0, y: 0, width: 400, height: 400)
+    )
+
+    XCTAssertEqual(overlay.minY, 320, accuracy: 0.001)
+    XCTAssertEqual(overlay.maxY, 360, accuracy: 0.001)
+  }
+
+  func testCameraOverlayConvertsToFlippedLayerCoordinates() {
+    let overlay = CameraOverlayGeometry.rect(
+      for: CGRect(x: 0.1, y: 0.8, width: 0.1, height: 0.1),
+      imageSize: CGSize(width: 1_000, height: 1_000),
+      in: CGRect(x: 0, y: 0, width: 400, height: 400),
+      destinationIsFlipped: true
+    )
+
+    XCTAssertEqual(overlay.minY, 40, accuracy: 0.001)
+    XCTAssertEqual(overlay.maxY, 80, accuracy: 0.001)
+  }
+
   func testCameraPipelineDecodesRotatedQRCodes() throws {
     let message = "https://example.test/rotated-camera-frame"
     let qrCode = try makeQRCode(message: message)
