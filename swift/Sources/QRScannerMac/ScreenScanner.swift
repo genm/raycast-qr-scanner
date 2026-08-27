@@ -1,8 +1,9 @@
 import CoreGraphics
+import QRScannerCore
 import ScreenCaptureKit
 
-enum ScreenScanner {
-  static func scan() async throws -> [ScanResult] {
+public enum ScreenScanner {
+  public static func scan() async throws -> [ScanResult] {
     guard CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() else {
       throw ScanError.screenPermissionDenied
     }

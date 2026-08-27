@@ -63,7 +63,8 @@
   "scripts": {
     "build": "ray build -e dist",
     "prebuild": "node scripts/check-swift-build-lock.mjs",
-    "check": "npm run lint && npm test && npm run test:swift && npm run build && npm run audit:dependencies",
+    "check": "npm run check:error-contract && npm run lint && npm test && npm run test:swift && npm run build && npm run audit:dependencies",
+    "check:error-contract": "node scripts/check-error-code-contract.mjs",
     "audit:dependencies": "npm audit --omit=dev --audit-level=high",
     "dev": "ray develop",
     "fix-lint": "ray lint --fix",

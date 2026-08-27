@@ -1,4 +1,6 @@
 import Foundation
+import QRScannerCore
+import QRScannerMac
 import RaycastSwiftMacros
 
 @raycast

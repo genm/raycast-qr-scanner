@@ -1,6 +1,6 @@
 # Architecture and Data Flow
 
-QR Scanner has one Raycast TypeScript UI and one Swift package with three production targets plus their tests. The TypeScript layer owns command state, result classification, and user actions. `QRScannerCore` owns portable models, errors, and QR recognition; `QRScannerMac` owns protected macOS APIs and native UI; `QRScannerNative` is the executable Raycast bridge.
+QR Scanner has one Raycast TypeScript UI and one Swift package with three production targets plus their tests. The TypeScript layer owns command state, result classification, and user actions. `QRScannerCore` owns Raycast-independent macOS models, errors, and Vision QR recognition; `QRScannerMac` owns protected macOS APIs and native UI; `QRScannerNative` is the executable Raycast bridge.
 
 ## Component boundaries
 
@@ -14,6 +14,8 @@ QR Scanner has one Raycast TypeScript UI and one Swift package with three produc
 | TypeScript contract  | `src/lib/result.ts`                                                 | Classify returned payloads and expose only supported explicit actions.                 |
 
 The bridge returns an array of `ScanResult` values. It never opens a payload automatically. The Raycast action panel is the only place that opens supported URL schemes or copies content.
+
+Dependencies flow in one direction: `QRScannerNative → QRScannerMac → QRScannerCore`. Only `QRScannerNative` depends on Raycast's macros and build plugins, so another macOS host can reuse the Core and Mac library products without importing Raycast APIs into its source targets.
 
 ## Camera sequence
 

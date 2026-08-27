@@ -4,10 +4,11 @@ import CoreFoundation
 import CoreImage
 import ImageIO
 import OSLog
+import QRScannerCore
 import QuartzCore
 
-enum CameraScanner {
-  static func scan() async throws -> [ScanResult] {
+public enum CameraScanner {
+  public static func scan() async throws -> [ScanResult] {
     switch AVCaptureDevice.authorizationStatus(for: .video) {
     case .authorized:
       break
@@ -94,7 +95,7 @@ enum CameraOverlayGeometry {
 }
 
 enum CameraPanelPresentation {
-  // A nonactivating panel keeps Raycast's view command alive so it can render the returned scan results.
+  // A nonactivating panel preserves the host UI that is waiting for native scan results.
   static let styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .nonactivatingPanel]
 }
 
@@ -254,7 +255,7 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     )
     panel.title = "Scan QR Code"
     panel.level = .floating
-    // Raycast or another app may become active while the user positions a QR code; keep the preview visible.
+    // The launcher host or another app may become active while the user positions a QR code; keep the preview visible.
     panel.hidesOnDeactivate = false
     panel.isReleasedWhenClosed = false
     panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]

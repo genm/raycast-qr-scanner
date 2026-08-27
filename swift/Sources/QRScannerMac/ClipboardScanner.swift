@@ -1,8 +1,9 @@
 import AppKit
+import QRScannerCore
 
 @MainActor
-enum ClipboardScanner {
-  static func scan() throws -> [ScanResult] {
+public enum ClipboardScanner {
+  public static func scan() throws -> [ScanResult] {
     guard let images = NSPasteboard.general.readObjects(forClasses: [NSImage.self]) as? [NSImage], !images.isEmpty else {
       throw ScanError.clipboardHasNoImage
     }

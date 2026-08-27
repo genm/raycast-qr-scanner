@@ -53,7 +53,7 @@ Stop `npm run dev` and wait for its native build to finish before running `npm r
 
 ## Architecture
 
-The TypeScript entry points share result classification and Raycast UI in `src/`. The Swift package in `swift/` separates portable QR contracts, macOS integrations, and the Raycast executable bridge:
+The TypeScript entry points share result classification and Raycast UI in `src/`. The Swift package in `swift/` separates Raycast-independent macOS QR contracts, macOS integrations, and the Raycast executable bridge:
 
 - `QRScannerCore`: `ScanResult`, stable error codes, and one `VNDetectBarcodesRequest` implementation restricted to QR symbology.
 - `QRScannerMac`: camera, screen, and clipboard capture plus the native camera panel.

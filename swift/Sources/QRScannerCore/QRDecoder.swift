@@ -3,13 +3,13 @@ import CoreMedia
 import ImageIO
 import Vision
 
-struct DetectedQRCode: Equatable, Sendable {
-  let value: String
-  let boundingBox: CGRect
+public struct DetectedQRCode: Equatable, Sendable {
+  public let value: String
+  public let boundingBox: CGRect
 }
 
-enum QRDecoder {
-  static func decode(cgImage: CGImage) throws -> [String] {
+public enum QRDecoder {
+  public static func decode(cgImage: CGImage) throws -> [String] {
     let request = VNDetectBarcodesRequest()
     request.symbologies = [.qr]
 
@@ -19,14 +19,14 @@ enum QRDecoder {
     return (request.results ?? []).compactMap(\.payloadStringValue)
   }
 
-  static func decode(
+  public static func decode(
     sampleBuffer: CMSampleBuffer,
     orientation: CGImagePropertyOrientation = .up
   ) throws -> [String] {
     try detect(sampleBuffer: sampleBuffer, orientation: orientation).map(\.value)
   }
 
-  static func detect(
+  public static func detect(
     sampleBuffer: CMSampleBuffer,
     orientation: CGImagePropertyOrientation = .up
   ) throws -> [DetectedQRCode] {
