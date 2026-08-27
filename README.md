@@ -1,8 +1,8 @@
-# QR Scanner for Raycast
+# QR Scanner
 
-Scan QR codes from a Mac camera, every visible display, or an image on the clipboard. QR recognition runs locally with Apple's AVFoundation, ScreenCaptureKit, and Vision frameworks; no image or QR content is sent to an external service.
+Scan QR codes from Raycast or the macOS command line using a camera, every visible display, or an image on the clipboard. QR recognition runs locally with Apple's AVFoundation, ScreenCaptureKit, and Vision frameworks; no image or QR content is sent to an external service.
 
-This project is pre-release software intended for macOS Raycast users. The source is ready for development and review; a Raycast Store release has not been published from this repository.
+This project is pre-release software for macOS. The source and CLI are ready for development and review; a Raycast Store release has not been published from this repository.
 
 ## Commands
 
@@ -13,6 +13,20 @@ This project is pre-release software intended for macOS Raycast users. The sourc
 Every result remains in Raycast until you explicitly open or copy it. This prevents an untrusted QR code from triggering a network request or launching another application without confirmation. Wi-Fi payloads show their parsed fields and provide separate copy actions. Duplicate payloads found on more than one display are shown once.
 
 The camera preview is a nonactivating macOS panel: it stays visible without taking focus from Raycast. This preserves the Raycast view that receives and displays the native scan result.
+
+## Command-line interface
+
+Run the same scanners without Raycast:
+
+```sh
+swift run --package-path cli qr-scanner camera
+swift run --package-path cli qr-scanner screen
+swift run --package-path cli qr-scanner clipboard
+```
+
+Successful scans write `ScanResult[]` JSON to stdout. Failures write `{ "code", "message" }` JSON to stderr and exit nonzero. Add `--pretty` for formatted JSON or `--help` for usage. Scanning never opens a decoded URL automatically.
+
+Camera and Screen Recording approval for the CLI is separate from Raycast. macOS can attribute it to the invoking terminal or executable it identifies, so follow the actual system prompt rather than granting additional Raycast access. See [CLI usage and contracts](docs/cli.md) for build instructions, output schemas, and exit statuses.
 
 ## Privacy and permissions
 
@@ -53,10 +67,11 @@ Stop `npm run dev` and wait for its native build to finish before running `npm r
 
 ## Architecture
 
-The TypeScript entry points share result classification and Raycast UI in `src/`. The Swift package in `swift/` separates Raycast-independent macOS QR contracts, macOS integrations, and the Raycast executable bridge:
+The TypeScript entry points share result classification and Raycast UI in `src/`. `swift/ScannerKit` contains the reusable macOS libraries, while `swift/` and `cli/` are separate host adapters:
 
 - `QRScannerCore`: `ScanResult`, stable error codes, and one `VNDetectBarcodesRequest` implementation restricted to QR symbology.
 - `QRScannerMac`: camera, screen, and clipboard capture plus the native camera panel.
+- `cli/QRScannerCLI`: an independent package for command parsing, JSON stdout/stderr, and process exit status.
 - `QRScannerNative`: `@raycast` entry points that return core results through the generated bridge.
 
 Camera capture uses `AVCaptureSession` and `AVCaptureVideoDataOutput` to produce BGRA `CMSampleBuffer` frames. Vision detects QR payloads and normalized bounds, and an `NSPanel` presents the live and one-second success states. Screen capture uses `SCShareableContent` and `SCScreenshotManager`; clipboard capture uses `NSPasteboard` and `NSImage`.
@@ -66,6 +81,7 @@ The native boundary returns structured JSON through Raycast's official [`extensi
 Detailed implementation and verification references:
 
 - [Architecture and data flow](docs/architecture.md)
+- [CLI usage and contracts](docs/cli.md)
 - [Testing and acceptance](docs/testing.md)
 - [Troubleshooting and privacy-safe diagnostics](docs/troubleshooting.md)
 

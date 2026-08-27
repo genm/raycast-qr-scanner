@@ -67,7 +67,7 @@ public enum ScanError: Error, LocalizedError, CustomStringConvertible, Sendable 
 
   public var description: String { errorDescription ?? "QR Scanner failed." }
 
-  private var message: String {
+  public var message: String {
     switch self {
     case .cameraPermissionDenied:
       "Camera access is denied."

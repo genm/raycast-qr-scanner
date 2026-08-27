@@ -13,7 +13,8 @@ This command runs Raycast linting, TypeScript tests, Swift tests, a production e
 Machine-readable results are written to:
 
 - `test-results/vitest.json` for TypeScript tests
-- `test-results/swift.xml` for Swift xUnit results
+- `test-results/swift.xml` for Core and Mac Swift xUnit results
+- `test-results/swift-cli.xml` for CLI Swift xUnit results
 
 Judge the run from those result files and the command exit status. A timeout, missing file, skipped build, or dependency-provider failure is not a passing result.
 
@@ -33,6 +34,8 @@ The Swift tests generate QR images with Core Image, draw them into BGRA `CVPixel
 - the `.nonactivatingPanel` presentation contract.
 
 Core contract tests separately lock the `ScanSource` raw values, encoded `ScanResult` JSON shape, stable error codes, and host-neutral native error messages used across bridge adapters.
+
+CLI adapter tests inject a scanner instead of accessing real protected resources. They cover command routing, compact and pretty JSON, help and invalid arguments, every Core error code and exit-status mapping, and unexpected failures. `swift run ... --help` and an invalid CLI invocation provide subprocess-level stdout/stderr and exit-status checks without reading the real camera, screens, or clipboard.
 
 The distance ratios are test inputs, not promised camera limits. Real recognition also depends on focus, lighting, contrast, perspective, damage, and camera characteristics.
 

@@ -1,6 +1,6 @@
 # Architecture and Data Flow
 
-QR Scanner has one Raycast TypeScript UI and one Swift package with three production targets plus their tests. The TypeScript layer owns command state, result classification, and user actions. `QRScannerCore` owns Raycast-independent macOS models, errors, and Vision QR recognition; `QRScannerMac` owns protected macOS APIs and native UI; `QRScannerNative` is the executable Raycast bridge.
+QR Scanner has a Raycast TypeScript UI, a Swift package with reusable libraries and the Raycast bridge, and a separate CLI package. The TypeScript layer owns Raycast command state, result classification, and user actions. `QRScannerCore` owns Raycast-independent macOS models, errors, and Vision QR recognition; `QRScannerMac` owns protected macOS APIs and native UI; `QRScannerNative` is the executable Raycast bridge; `QRScannerCLI` presents the same scanner operations through JSON and process exit status.
 
 ## Component boundaries
 
@@ -9,13 +9,14 @@ QR Scanner has one Raycast TypeScript UI and one Swift package with three produc
 | Command entry points | `src/scan-*.tsx`                                                    | Select the camera, screen, or clipboard source.                                        |
 | Shared result UI     | `src/components/scan-command.tsx`                                   | Show loading and error states, list results, and expose explicit open or copy actions. |
 | Native bridge        | `src/lib/native.ts`, `swift/Sources/QRScannerNative/SwiftAPI.swift` | Invoke Swift through Raycast's `extensions-swift-tools` JSON bridge.                   |
-| Core contract        | `swift/Sources/QRScannerCore`                                       | Define result JSON, stable error codes, source values, and Vision QR recognition.      |
-| macOS integration    | `swift/Sources/QRScannerMac`                                        | Acquire camera, screen, and clipboard images and present the native camera panel.      |
+| CLI adapter          | `cli/Sources/QRScannerCLI`                                          | Parse commands and expose scanner results and errors as process-safe JSON.             |
+| Core contract        | `swift/ScannerKit/Sources/QRScannerCore`                            | Define result JSON, stable error codes, source values, and Vision QR recognition.      |
+| macOS integration    | `swift/ScannerKit/Sources/QRScannerMac`                             | Acquire camera, screen, and clipboard images and present the native camera panel.      |
 | TypeScript contract  | `src/lib/result.ts`                                                 | Classify returned payloads and expose only supported explicit actions.                 |
 
 The bridge returns an array of `ScanResult` values. It never opens a payload automatically. The Raycast action panel is the only place that opens supported URL schemes or copies content.
 
-Dependencies flow in one direction: `QRScannerNative → QRScannerMac → QRScannerCore`. Only `QRScannerNative` depends on Raycast's macros and build plugins, so another macOS host can reuse the Core and Mac library products without importing Raycast APIs into its source targets.
+Dependencies flow toward the shared implementation: `QRScannerNative → QRScannerMac → QRScannerCore` and `QRScannerCLI → QRScannerMac → QRScannerCore`. The CLI is a separate Swift package with a local dependency on the library products, while only the Raycast package depends on Raycast's macros and build plugins. This also preserves Raycast's requirement that its imported package expose exactly one executable target. A future MCP adapter should be another package that calls Core and Mac APIs directly, not one that parses CLI output or reimplements scanning rules.
 
 ## Camera sequence
 

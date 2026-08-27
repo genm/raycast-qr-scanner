@@ -8,9 +8,9 @@ raycast-env.d.ts
 .raycast-swift-build/
 compiled_raycast_swift/
 
-# SwiftPM generated files
-swift/.build/
-swift/.swiftpm/
+# SwiftPM generated files (root and nested adapter packages)
+**/.build/
+**/.swiftpm/
 
 # Local audit output
 .gitleaks-report.json

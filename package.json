@@ -70,6 +70,6 @@
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",
     "test": "vitest run --reporter=json --outputFile=test-results/vitest.json",
-    "test:swift": "mkdir -p test-results && swift test --package-path swift --parallel --xunit-output test-results/swift.xml"
+    "test:swift": "mkdir -p test-results && swift test --package-path swift/ScannerKit --parallel --xunit-output test-results/swift.xml && swift test --package-path cli --parallel --xunit-output test-results/swift-cli.xml"
   }
 }
