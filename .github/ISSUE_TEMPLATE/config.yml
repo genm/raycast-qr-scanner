@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/genm/raycast-qr-scanner/security/advisories/new
+    about: Report vulnerabilities privately; do not disclose them in an issue.
+  - name: Raycast platform support
+    url: https://developers.raycast.com/
+    about: Use Raycast's official channels for platform and API issues unrelated to this extension.

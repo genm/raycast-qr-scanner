@@ -11,3 +11,6 @@ compiled_raycast_swift/
 # SwiftPM generated files
 swift/.build/
 swift/.swiftpm/
+
+# Local audit output
+.gitleaks-report.json

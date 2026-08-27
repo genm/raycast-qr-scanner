@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose a focused improvement to QR Scanner.
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the user need without including private QR content or personal data.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: permissions
+    attributes:
+      label: Permissions and privacy
+      options:
+        - label: This proposal does not add a new permission or network/data collection behavior.
+        - label: This proposal changes permissions or data handling, explained above.
