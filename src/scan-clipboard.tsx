@@ -1,8 +1,6 @@
-import { scanClipboard } from "swift:../swift";
-
 import { ScanCommand } from "./components/scan-command";
-import { NativeScanResult } from "./lib/result";
+import { scanClipboard } from "./lib/native";
 
 export default function Command() {
-  return <ScanCommand source="clipboard" scan={() => scanClipboard() as Promise<NativeScanResult[]>} />;
+  return <ScanCommand source="clipboard" scan={scanClipboard} />;
 }

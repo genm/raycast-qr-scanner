@@ -1,8 +1,6 @@
-import { scanCamera } from "swift:../swift";
-
 import { ScanCommand } from "./components/scan-command";
-import { NativeScanResult } from "./lib/result";
+import { scanCamera } from "./lib/native";
 
 export default function Command() {
-  return <ScanCommand source="camera" scan={() => scanCamera() as Promise<NativeScanResult[]>} />;
+  return <ScanCommand source="camera" scan={scanCamera} />;
 }

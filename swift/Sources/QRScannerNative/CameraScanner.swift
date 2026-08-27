@@ -24,7 +24,7 @@ enum CameraScanner {
 }
 
 @MainActor
-private final class CameraScanController: NSObject, AVCaptureMetadataOutputObjectsDelegate, NSWindowDelegate {
+private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, NSWindowDelegate {
   private static var activeController: CameraScanController?
 
   private let session = AVCaptureSession()
@@ -34,6 +34,7 @@ private final class CameraScanController: NSObject, AVCaptureMetadataOutputObjec
   private var notificationTokens: [NSObjectProtocol] = []
   private var continuation: CheckedContinuation<[ScanResult], Error>?
   private var didFinish = false
+  private var isApplicationRunLoopRunning = false
 
   static func run() async throws -> [ScanResult] {
     guard activeController == nil else {
@@ -47,7 +48,9 @@ private final class CameraScanController: NSObject, AVCaptureMetadataOutputObjec
         controller.continuation = continuation
         do {
           try controller.start()
-          NSApp.run()
+          controller.isApplicationRunLoopRunning = true
+          NSApplication.shared.run()
+          controller.isApplicationRunLoopRunning = false
           if !controller.didFinish {
             controller.finish(.failure(ScanError.cameraCancelled))
           }
@@ -68,21 +71,18 @@ private final class CameraScanController: NSObject, AVCaptureMetadataOutputObjec
     }
 
     let input = try AVCaptureDeviceInput(device: camera)
-    let metadataOutput = AVCaptureMetadataOutput()
+    let videoOutput = AVCaptureVideoDataOutput()
+    videoOutput.alwaysDiscardsLateVideoFrames = true
+    videoOutput.setSampleBufferDelegate(self, queue: metadataQueue)
 
     session.beginConfiguration()
-    defer { session.commitConfiguration() }
-
-    guard session.canAddInput(input), session.canAddOutput(metadataOutput) else {
+    guard session.canAddInput(input), session.canAddOutput(videoOutput) else {
+      session.commitConfiguration()
       throw ScanError.cameraConfigurationFailed
     }
     session.addInput(input)
-    session.addOutput(metadataOutput)
-    metadataOutput.setMetadataObjectsDelegate(self, queue: metadataQueue)
-    guard metadataOutput.availableMetadataObjectTypes.contains(.qr) else {
-      throw ScanError.cameraConfigurationFailed
-    }
-    metadataOutput.metadataObjectTypes = [.qr]
+    session.addOutput(videoOutput)
+    session.commitConfiguration()
 
     let notificationCenter = NotificationCenter.default
     notificationTokens.append(notificationCenter.addObserver(
@@ -106,8 +106,9 @@ private final class CameraScanController: NSObject, AVCaptureMetadataOutputObjec
 
     let panel = makePanel(previewing: session)
     self.panel = panel
-    NSApp.setActivationPolicy(.accessory)
-    NSApp.activate(ignoringOtherApps: true)
+    let application = NSApplication.shared
+    application.setActivationPolicy(.accessory)
+    application.activate(ignoringOtherApps: true)
     panel.makeKeyAndOrderFront(nil)
 
     sessionQueue.async { [session] in
@@ -155,16 +156,22 @@ private final class CameraScanController: NSObject, AVCaptureMetadataOutputObjec
     return panel
   }
 
-  nonisolated func metadataOutput(
-    _ output: AVCaptureMetadataOutput,
-    didOutput metadataObjects: [AVMetadataObject],
+  nonisolated func captureOutput(
+    _ output: AVCaptureOutput,
+    didOutput sampleBuffer: CMSampleBuffer,
     from connection: AVCaptureConnection
   ) {
-    let values = metadataObjects.compactMap { ($0 as? AVMetadataMachineReadableCodeObject)?.stringValue }
-    guard !values.isEmpty else { return }
+    let result = Result { try QRDecoder.decode(sampleBuffer: sampleBuffer) }
 
     Task { @MainActor [weak self] in
-      self?.finish(.success(values.map { ScanResult(value: $0, source: .camera) }))
+      switch result {
+      case let .success(values) where !values.isEmpty:
+        self?.finish(.success(values.map { ScanResult(value: $0, source: .camera) }))
+      case .success:
+        break
+      case let .failure(error):
+        self?.finish(.failure(error))
+      }
     }
   }
 
@@ -197,8 +204,14 @@ private final class CameraScanController: NSObject, AVCaptureMetadataOutputObjec
   }
 
   private func stopApplicationRunLoop() {
-    guard NSApp.isRunning else { return }
-    NSApp.stop(nil)
+    // Camera setup can fail before AppKit is initialized; never touch the NSApp IUO on that path.
+    guard isApplicationRunLoopRunning else { return }
+    let application = NSApplication.shared
+    guard application.isRunning else {
+      isApplicationRunLoopRunning = false
+      return
+    }
+    application.stop(nil)
     if let wakeEvent = NSEvent.otherEvent(
       with: .applicationDefined,
       location: .zero,
@@ -210,7 +223,7 @@ private final class CameraScanController: NSObject, AVCaptureMetadataOutputObjec
       data1: 0,
       data2: 0
     ) {
-      NSApp.postEvent(wakeEvent, atStart: false)
+      application.postEvent(wakeEvent, atStart: false)
     }
   }
 }
