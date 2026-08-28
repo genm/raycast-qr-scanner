@@ -23,7 +23,7 @@
     "Windows"
   ],
   "engines": {
-    "node": ">=22.22.2"
+    "node": ">=24.20.0"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,

@@ -42,13 +42,13 @@ Opening a recognized `http`, `https`, `mailto`, or `tel` payload is always a sep
 
 - macOS 14 or newer, or Windows 10/11 with Windows Camera installed. macOS screen scanning uses Apple's one-shot `SCScreenshotManager` API.
 - Raycast with extension development support.
-- Node.js 22.22.2 or newer for development.
+- Node.js 24.20.0 or newer for development.
 - The npm version declared by `packageManager`. The repository pins it because its install-script allowlist is part of the dependency security policy.
 - Xcode 16.3 or newer with Swift 6 support when building on macOS. The current checks also pass with Xcode 26.6; CI pins Xcode 16.4 for a stable hosted toolchain.
 
 ## Install for development
 
-1. Install the declared Node.js, npm, and workflow-linting tools with `mise install`, then run `mise run setup`. Without mise, use Node.js 22.22.2 or newer and the npm version declared in `package.json`, then run `npm ci`.
+1. Install the declared Node.js, npm, and workflow-linting tools with `mise install`, then run `mise run setup`. Without mise, use Node.js 24.20.0 or newer and the npm version declared in `package.json`, then run `npm ci`.
 2. In Raycast, run **Import Extension** and select this directory.
 3. Run `mise run dev` (or `npm run dev`), or start development from Raycast's **Manage Extensions** command.
 
