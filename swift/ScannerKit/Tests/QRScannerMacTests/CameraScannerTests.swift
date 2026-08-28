@@ -9,8 +9,56 @@ import XCTest
 @testable import QRScannerMac
 
 final class CameraScannerTests: XCTestCase {
+  private final class PresentingApplicationSpy: CameraPresentingApplication {
+    var processIdentifier: pid_t = 42
+    var isTerminated = false
+    var activationOptions: NSApplication.ActivationOptions?
+
+    func activate(options: NSApplication.ActivationOptions) -> Bool {
+      activationOptions = options
+      return true
+    }
+  }
+
   func testCameraPanelUsesNonactivatingStyle() {
     XCTAssertTrue(CameraPanelPresentation.styleMask.contains(.nonactivatingPanel))
+  }
+
+  func testCameraHostPresentationIgnoresScannerProcess() {
+    let application = PresentingApplicationSpy()
+
+    XCTAssertNil(CameraHostPresentation.capture(
+      frontmostApplication: application,
+      currentProcessIdentifier: application.processIdentifier
+    ))
+  }
+
+  func testCameraHostPresentationCapturesExternalApplication() {
+    let application = PresentingApplicationSpy()
+
+    let captured = CameraHostPresentation.capture(
+      frontmostApplication: application,
+      currentProcessIdentifier: application.processIdentifier + 1
+    )
+
+    XCTAssertTrue(captured === application)
+  }
+
+  func testCameraHostPresentationRestoresLiveApplication() {
+    let application = PresentingApplicationSpy()
+
+    CameraHostPresentation.restore(application)
+
+    XCTAssertTrue(application.activationOptions?.contains(.activateAllWindows) == true)
+  }
+
+  func testCameraHostPresentationDoesNotRestoreTerminatedApplication() {
+    let application = PresentingApplicationSpy()
+    application.isTerminated = true
+
+    CameraHostPresentation.restore(application)
+
+    XCTAssertNil(application.activationOptions)
   }
 
   func testDecodesQRCodeFromCameraSampleBuffer() throws {

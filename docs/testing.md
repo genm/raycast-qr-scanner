@@ -31,7 +31,7 @@ The Swift tests generate QR images with Core Image, draw them into BGRA `CVPixel
 - frozen-frame `CGImage` dimensions;
 - `resizeAspectFill` crop math;
 - unflipped and flipped AppKit overlay coordinates;
-- the `.nonactivatingPanel` presentation contract.
+- the `.nonactivatingPanel` presentation contract and presenting-application restoration.
 
 Core contract tests separately lock the `ScanSource` raw values, encoded `ScanResult` JSON shape, stable error codes, and host-neutral native error messages used across bridge adapters.
 
@@ -51,7 +51,7 @@ Hosted CI cannot provide a physical camera, macOS TCC interaction, Raycast focus
 4. Present a realistic QR code near the center, then near an edge.
 5. Confirm detection freezes the matched frame and the highlight surrounds the QR rather than a mirrored or vertically displaced location.
 6. Confirm the success state remains visible for approximately one second.
-7. Confirm only the camera panel closes and the Raycast result list appears.
+7. Confirm only the camera panel closes, Raycast returns to the foreground, and the result list appears.
 8. Confirm opening a URL remains an explicit action; scanning alone must not launch it.
 9. Close the camera before detection and confirm Raycast presents cancellation rather than synthetic success.
 

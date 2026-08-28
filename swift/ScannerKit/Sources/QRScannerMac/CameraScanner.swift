@@ -100,6 +100,31 @@ enum CameraPanelPresentation {
   static let styleMask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .nonactivatingPanel]
 }
 
+protocol CameraPresentingApplication: AnyObject {
+  var processIdentifier: pid_t { get }
+  var isTerminated: Bool { get }
+  @discardableResult
+  func activate(options: NSApplication.ActivationOptions) -> Bool
+}
+
+extension NSRunningApplication: CameraPresentingApplication {}
+
+enum CameraHostPresentation {
+  static func capture(
+    frontmostApplication: CameraPresentingApplication? = NSWorkspace.shared.frontmostApplication,
+    currentProcessIdentifier: pid_t = ProcessInfo.processInfo.processIdentifier
+  ) -> CameraPresentingApplication? {
+    guard frontmostApplication?.processIdentifier != currentProcessIdentifier else { return nil }
+    return frontmostApplication
+  }
+
+  static func restore(_ application: CameraPresentingApplication?) {
+    guard let application, !application.isTerminated else { return }
+    // The native scanner may outlive the launcher's foreground state; restore it so returned results are visible.
+    application.activate(options: [.activateAllWindows])
+  }
+}
+
 private enum CameraDiagnostics {
   static let logger = Logger(subsystem: "com.genm.qr-scanner", category: "camera")
 }
@@ -153,6 +178,7 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
   private var successTimer: Timer?
   private var notificationTokens: [NSObjectProtocol] = []
   private var continuation: CheckedContinuation<[ScanResult], Error>?
+  private var presentingApplication: CameraPresentingApplication?
   private var didFinish = false
   private var isApplicationRunLoopRunning = false
 
@@ -186,6 +212,8 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
   }
 
   private func start() throws {
+    presentingApplication = CameraHostPresentation.capture()
+
     guard let camera = AVCaptureDevice.default(for: .video) else {
       throw ScanError.cameraUnavailable
     }
@@ -428,6 +456,8 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     previewLayer = nil
     panel?.delegate = nil
     panel?.orderOut(nil)
+    CameraHostPresentation.restore(presentingApplication)
+    presentingApplication = nil
     notificationTokens.forEach(NotificationCenter.default.removeObserver)
     notificationTokens.removeAll()
 

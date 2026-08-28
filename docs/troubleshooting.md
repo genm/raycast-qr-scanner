@@ -24,14 +24,15 @@ When reporting a remaining mismatch, state whether it is horizontal, vertical, m
 
 ## Camera closes but no result is visible
 
-The camera must use a nonactivating `NSPanel`; activating the Swift helper can dismiss the Raycast view that is waiting for results. Stop and restart `npm run dev` after rebuilding so Raycast is not using an older native helper.
+The camera uses a nonactivating `NSPanel` and restores the application that opened it when scanning finishes. Activating the Swift helper itself can leave the Raycast view that is waiting for results in the background. Stop and restart `npm run dev` after rebuilding so Raycast is not using an older native helper.
 
 Expected behavior is:
 
 1. detect the QR code;
 2. show the frozen success frame for one second;
 3. close only the camera panel;
-4. show the result list in the existing Raycast view.
+4. restore Raycast to the foreground;
+5. show the result list in the existing Raycast view.
 
 Scanning never opens a URL automatically. Use the result's action panel to open or copy it.
 

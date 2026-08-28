@@ -40,7 +40,7 @@ sequenceDiagram
     R->>R: Render result list and explicit actions
 ```
 
-The panel uses the `.nonactivatingPanel` style and `orderFrontRegardless()`. It remains visible without activating the Swift helper, because activating the helper would cause Raycast to lose the view that is waiting for native results.
+The panel uses the `.nonactivatingPanel` style and `orderFrontRegardless()`. It remains visible without activating the Swift helper. The controller records the foreground application before opening the panel and restores that application after hiding the panel, before returning the scan result. This keeps Raycast results visible while also preserving the CLI caller's terminal when the shared scanner is used outside Raycast.
 
 `AVCaptureVideoDataOutput` requests `kCVPixelFormatType_32BGRA`. CI fixtures exercise that requested sample-buffer format and the production `CMSampleBuffer → Vision → ScanResult` code path. Hardware capture, TCC, and Raycast integration remain manual acceptance checks. Frame processing runs on one serial queue and discards late frames.
 

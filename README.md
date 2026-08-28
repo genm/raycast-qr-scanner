@@ -12,7 +12,7 @@ This project is pre-release software for macOS. The source and CLI are ready for
 
 Every result remains in Raycast until you explicitly open or copy it. This prevents an untrusted QR code from triggering a network request or launching another application without confirmation. Wi-Fi payloads show their parsed fields and provide separate copy actions. Duplicate payloads found on more than one display are shown once.
 
-The camera preview is a nonactivating macOS panel: it stays visible without taking focus from Raycast. This preserves the Raycast view that receives and displays the native scan result.
+The camera preview is a nonactivating macOS panel: it stays visible without taking focus from Raycast. When scanning finishes, the scanner restores the application that opened it so the returned result view is visible.
 
 ## Command-line interface
 
@@ -61,7 +61,7 @@ To uninstall a development copy, open **Manage Extensions** in Raycast, select *
 npm run check
 ```
 
-The full check lints, runs TypeScript and Swift tests, builds the extension, and audits production dependencies at high severity. TypeScript tests write JSON to `test-results/vitest.json`; Swift tests write xUnit XML to `test-results/swift.xml`. Swift tests generate real QR images with Core Image and pass BGRA `CMSampleBuffer` frames through Vision. The matrix covers rotation, mirroring, apparent distance, QR-free frames, bounding boxes, frozen-frame generation, aspect-fill overlay coordinates, and the nonactivating camera panel contract.
+The full check lints, runs TypeScript and Swift tests, builds the extension, and audits production dependencies at high severity. TypeScript tests write JSON to `test-results/vitest.json`; Swift tests write xUnit XML to `test-results/swift.xml`. Swift tests generate real QR images with Core Image and pass BGRA `CMSampleBuffer` frames through Vision. The matrix covers rotation, mirroring, apparent distance, QR-free frames, bounding boxes, frozen-frame generation, aspect-fill overlay coordinates, the nonactivating camera panel contract, and restoration of the presenting application.
 
 Stop `npm run dev` and wait for its native build to finish before running `npm run build` or `npm run check`. Raycast debug and release builds share one Xcode build database; the prebuild guard fails with an actionable error instead of allowing concurrent builds to produce a misleading package-import failure.
 
