@@ -8,7 +8,7 @@ Run the repository-wide check from the project root:
 npm run check
 ```
 
-This command runs Raycast linting, TypeScript tests, Swift tests, a production extension build, and a high-severity production-dependency audit. Stop `npm run dev` and wait for its native build to finish first; debug and release builds share one Swift build database.
+This command runs TypeScript type checking, Raycast linting, TypeScript tests, Swift tests, a production extension build, and a high-severity production-dependency audit. Run it on macOS, and stop `npm run dev` before starting because debug and release builds share one Swift build database.
 
 Machine-readable results are written to:
 
@@ -39,7 +39,9 @@ CLI adapter tests inject a scanner instead of accessing real protected resources
 
 The distance ratios are test inputs, not promised camera limits. Real recognition also depends on focus, lighting, contrast, perspective, damage, and camera characteristics.
 
-GitHub Actions runs the same `npm run check` command on `macos-15` with Xcode 16.4. Failed machine-readable test results are uploaded for three days; successful runs do not upload them.
+GitHub Actions runs the same `npm run check` command on `macos-15` with Xcode 16.4. A Windows job separately checks the error contract, types, lint, TypeScript tests, and production dependency audit without trying to compile the macOS Swift package. Failed machine-readable test results are uploaded for three days; successful runs do not upload them.
+
+The TypeScript matrix generates real PNG QR fixtures, including two distinct QR codes in one image and a QR-free image. It exercises the production PNG-to-RGBA and local decoding path used by every Windows source.
 
 ## Manual camera acceptance
 
@@ -57,11 +59,24 @@ Hosted CI cannot provide a physical camera, macOS TCC interaction, Raycast focus
 
 Use reserved `.test` domains for generated fixtures and redact all real QR content from screenshots and issue reports.
 
+## Windows manual acceptance
+
+Windows capture APIs require an interactive desktop, clipboard, and Windows Camera, so hosted CI covers the decoder and contracts while a development import covers integration:
+
+1. Run **Scan QR from Screen** with distinct test QR codes on two displays. Confirm Raycast hides before capture, restores itself, and lists both values with their display labels.
+2. Run the screen command with no QR visible and confirm `No QR Code Found` rather than an empty result.
+3. Copy an image containing multiple test QR codes and confirm **Scan QR from Clipboard** returns all distinct values.
+4. Copy text instead of an image and confirm `No Image in Clipboard`.
+5. Run **Scan QR from Camera**. Confirm Windows Camera opens, a visible test QR is returned, and scanning alone does not open its URL.
+6. Start the camera command and close Windows Camera before detection. Confirm Raycast restores and presents cancellation.
+7. Confirm the extension support directory contains no `scan-*` temporary directory after each success and failure case.
+
 ## Other adverse paths
 
 Exercise the affected path when changing permissions or source capture:
 
-- camera permission denied or restricted;
+- macOS camera permission denied or restricted;
+- Windows Camera missing or closed before detection;
 - no camera available or capture interrupted;
 - Screen Recording permission denied;
 - no visible display;

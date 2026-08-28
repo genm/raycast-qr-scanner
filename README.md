@@ -1,8 +1,8 @@
 # QR Scanner
 
-Scan QR codes from Raycast or the macOS command line using a camera, every visible display, or an image on the clipboard. QR recognition runs locally with Apple's AVFoundation, ScreenCaptureKit, and Vision frameworks; no image or QR content is sent to an external service.
+Scan QR codes from Raycast on macOS and Windows, or from the macOS command line, using a camera, every visible display, or an image on the clipboard. QR recognition runs locally; no image or QR content is sent to an external service.
 
-This project is pre-release software for macOS. The source and CLI are ready for development and review; a Raycast Store release has not been published from this repository.
+This project is pre-release software. The source and macOS CLI are ready for development and review; a Raycast Store release has not been published from this repository.
 
 ## Commands
 
@@ -12,7 +12,7 @@ This project is pre-release software for macOS. The source and CLI are ready for
 
 Every result remains in Raycast until you explicitly open or copy it. This prevents an untrusted QR code from triggering a network request or launching another application without confirmation. Wi-Fi payloads show their parsed fields and provide separate copy actions. Duplicate payloads found on more than one display are shown once.
 
-The camera preview is a nonactivating macOS panel: it stays visible without taking focus from Raycast. When scanning finishes, the scanner restores the application that opened it so the returned result view is visible.
+On macOS, the camera preview is a nonactivating native panel that stays visible without taking focus from Raycast. On Windows, the command opens Windows Camera and scans that app's visible preview until it finds a QR code or you close the Camera window. When scanning finishes, the scanner restores Raycast so the returned result view is visible.
 
 ## Command-line interface
 
@@ -30,20 +30,20 @@ Camera and Screen Recording approval for the CLI is separate from Raycast. macOS
 
 ## Privacy and permissions
 
-- Camera scans request macOS Camera access for Raycast and process frames only in memory.
-- Screen scans request macOS Screen Recording access for Raycast and capture each visible display once.
+- On macOS, camera scans request Camera access for Raycast and process frames only in memory. On Windows, Windows Camera owns camera access and the extension scans its visible window.
+- On macOS, screen scans request Screen Recording access for Raycast. On Windows, PowerShell and .NET capture each visible display once.
 - Clipboard scans read image data from the current clipboard and do not request Camera or Screen Recording access.
 - The extension has no telemetry, analytics, accounts, update checks, or extension-owned network service.
-- QR content is retained only by Raycast's normal UI and clipboard behavior. This extension does not create its own files or database.
+- Windows captures use a per-scan temporary directory inside Raycast's extension support directory and delete it on success or failure. QR content is retained only by Raycast's normal UI and clipboard behavior; the extension has no database or scan history.
 
 Opening a recognized `http`, `https`, `mailto`, or `tel` payload is always a separate user action. Other URI schemes are displayed as text.
 
 ## Requirements
 
-- macOS 14 or newer. Screen scanning uses Apple's one-shot `SCScreenshotManager` API.
+- macOS 14 or newer, or Windows 10/11 with Windows Camera installed. macOS screen scanning uses Apple's one-shot `SCScreenshotManager` API.
 - Raycast with extension development support.
 - Node.js 22.22.2 or newer for development.
-- Xcode 16.3 or newer with Swift 6 support for the Raycast Swift bridge. The current checks also pass with Xcode 26.6; CI pins Xcode 16.4 for a stable hosted toolchain.
+- Xcode 16.3 or newer with Swift 6 support when building on macOS. The current checks also pass with Xcode 26.6; CI pins Xcode 16.4 for a stable hosted toolchain.
 
 ## Install for development
 
@@ -51,9 +51,9 @@ Opening a recognized `http`, `https`, `mailto`, or `tel` payload is always a sep
 2. In Raycast, run **Import Extension** and select this directory.
 3. Run `npm run dev`, or start development from Raycast's **Manage Extensions** command.
 
-macOS attributes protected resources to Raycast. The first camera or screen scan can show a system permission prompt. If access was denied, use the command's **Open System Settings** action, grant the permission to Raycast, and restart Raycast when macOS requests it.
+On macOS, protected resources are attributed to Raycast. The first camera or screen scan can show a system permission prompt. If access was denied, use the command's **Open System Settings** action, grant the permission to Raycast, and restart Raycast when macOS requests it. On Windows, accept any camera prompt shown by Windows Camera.
 
-To uninstall a development copy, open **Manage Extensions** in Raycast, select **QR Scanner**, and choose **Uninstall Extension**. The extension stores no application data. Camera and Screen Recording permissions belong to Raycast and can be revoked separately in **System Settings > Privacy & Security**.
+To uninstall a development copy, open **Manage Extensions** in Raycast, select **QR Scanner**, and choose **Uninstall Extension**. The extension stores no scan history. On macOS, Camera and Screen Recording permissions belong to Raycast and can be revoked separately in **System Settings > Privacy & Security**; on Windows, camera permission belongs to Windows Camera.
 
 ## Development checks
 
@@ -67,14 +67,15 @@ Stop `npm run dev` and wait for its native build to finish before running `npm r
 
 ## Architecture
 
-The TypeScript entry points share result classification and Raycast UI in `src/`. `swift/ScannerKit` contains the reusable macOS libraries, while `swift/` and `cli/` are separate host adapters:
+The TypeScript entry points share result classification and Raycast UI in `src/`. `src/lib/windows.ts` owns the Windows adapter. `swift/ScannerKit` contains the reusable macOS libraries, while `swift/` and `cli/` are separate macOS host adapters:
 
 - `QRScannerCore`: `ScanResult`, stable error codes, and one `VNDetectBarcodesRequest` implementation restricted to QR symbology.
 - `QRScannerMac`: camera, screen, and clipboard capture plus the native camera panel.
 - `cli/QRScannerCLI`: an independent package for command parsing, JSON stdout/stderr, and process exit status.
 - `QRScannerNative`: `@raycast` entry points that return core results through the generated bridge.
+- Windows adapter: PowerShell/.NET capture plus the local `jsQR` decoder for screen, clipboard, and Windows Camera preview images.
 
-Camera capture uses `AVCaptureSession` and `AVCaptureVideoDataOutput` to produce BGRA `CMSampleBuffer` frames. Vision detects QR payloads and normalized bounds, and an `NSPanel` presents the live and one-second success states. Screen capture uses `SCShareableContent` and `SCScreenshotManager`; clipboard capture uses `NSPasteboard` and `NSImage`.
+On macOS, camera capture uses `AVCaptureSession` and `AVCaptureVideoDataOutput` to produce BGRA `CMSampleBuffer` frames. Vision detects QR payloads and normalized bounds, and an `NSPanel` presents the live and one-second success states. Screen capture uses `SCShareableContent` and `SCScreenshotManager`; clipboard capture uses `NSPasteboard` and `NSImage`. On Windows, the adapter uses built-in PowerShell/.NET APIs to capture displays, clipboard images, and the visible Windows Camera window, then decodes PNG pixels locally.
 
 The native boundary returns structured JSON through Raycast's official [`extensions-swift-tools`](https://github.com/raycast/extensions-swift-tools) bridge. Permission denial, restricted camera access, missing hardware, empty clipboard, image conversion failure, and no QR result remain distinct errors.
 

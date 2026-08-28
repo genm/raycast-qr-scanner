@@ -57,6 +57,12 @@ export function presentNativeError(error: unknown, source: ScanSource): ScanErro
       isCancellation: true,
     };
   }
+  if (code === NATIVE_ERROR_CODES.cameraUnavailable && process.platform === "win32") {
+    return {
+      title: "Windows Camera Unavailable",
+      message: "Confirm Windows Camera is installed and can show a camera preview, then try again.",
+    };
+  }
 
   const genericPresentation = code ? GENERIC_PRESENTATIONS[code] : undefined;
   if (genericPresentation) return genericPresentation;
