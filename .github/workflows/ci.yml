@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
   push:
     branches: [main]
 
@@ -49,6 +50,7 @@ jobs:
 
   check:
     name: Check
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: macos-15
     timeout-minutes: 20
     steps:
@@ -70,11 +72,36 @@ jobs:
       - name: Select Xcode 16.4
         run: sudo xcode-select -s /Applications/Xcode_16.4.app
 
+      # PR caches are scoped to their merge ref, so untrusted changes cannot overwrite main's cache.
+      - name: Restore Swift build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            swift/.raycast-swift-build
+            swift/ScannerKit/.build
+            cli/.build
+          key: swift-${{ runner.os }}-${{ runner.arch }}-xcode-16.4-${{ hashFiles('swift/Package.resolved', 'swift/**/Package.swift', 'cli/Package.swift') }}
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Run decisive checks
-        run: npm run check
+      - name: Check native error contract
+        run: npm run check:error-contract
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test TypeScript
+        run: npm test
+
+      - name: Test Swift
+        run: npm run test:swift
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Audit production dependencies
+        run: npm run audit:dependencies
 
       - name: Preserve failed test results
         if: failure()
