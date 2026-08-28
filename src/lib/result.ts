@@ -47,7 +47,7 @@ export function classifyScanResult(result: NativeScanResult): ClassifiedScanResu
   }
 
   if (isFidoHybridURI(result.value)) {
-    return { ...result, kind: "fido", title: "FIDO Authentication" };
+    return { ...result, kind: "fido", title: "FIDO Authentication", openTarget: result.value };
   }
 
   try {

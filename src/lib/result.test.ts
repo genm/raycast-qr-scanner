@@ -24,11 +24,10 @@ describe("classifyScanResult", () => {
     expect(result.openTarget).toBeUndefined();
   });
 
-  it("presents a valid FIDO hybrid URI without offering an unsupported macOS open action", () => {
+  it("presents a valid FIDO hybrid URI as an explicit passkey request", () => {
     const result = classifyScanResult({ value: FIDO_HYBRID_URI, source: "camera" });
 
-    expect(result).toMatchObject({ kind: "fido", title: "FIDO Authentication" });
-    expect(result.openTarget).toBeUndefined();
+    expect(result).toMatchObject({ kind: "fido", title: "FIDO Authentication", openTarget: FIDO_HYBRID_URI });
     expect(classifyScanResult({ value: FIDO_HYBRID_URI.toLowerCase(), source: "camera" }).kind).toBe("fido");
   });
 

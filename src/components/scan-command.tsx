@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Detail, Icon, List, open } from "@raycast/api";
+import { Action, ActionPanel, Detail, Icon, List, open, showToast, Toast } from "@raycast/api";
 import { usePromise } from "@raycast/utils";
 import { useMemo } from "react";
 
@@ -81,12 +81,15 @@ function ResultActions({ result }: { result: ClassifiedScanResult }) {
   return (
     <ActionPanel>
       {result.openTarget && (
-        <Action title="Open" icon={Icon.ArrowNe} onAction={() => open(result.openTarget as string)} />
+        <Action
+          title={result.kind === "fido" ? "Request Passkey" : "Open"}
+          icon={result.kind === "fido" ? Icon.Key : Icon.ArrowNe}
+          onAction={() =>
+            result.kind === "fido" ? requestPasskey(result.openTarget as string) : open(result.openTarget as string)
+          }
+        />
       )}
-      <Action.CopyToClipboard
-        title={result.kind === "fido" ? "Copy FIDO URI" : "Copy QR Content"}
-        content={result.value}
-      />
+      {result.kind !== "fido" && <Action.CopyToClipboard title="Copy QR Content" content={result.value} />}
       {result.wifi?.password && <Action.CopyToClipboard title="Copy Wi-Fi Password" content={result.wifi.password} />}
     </ActionPanel>
   );
@@ -124,10 +127,22 @@ function resultMarkdown(result: ClassifiedScanResult): string {
       "# FIDO Authentication",
       "This is a FIDO hybrid authentication request. Complete it with a compatible nearby passkey device.",
       "The URI can contain one-time authentication material. Share it only with the intended authenticator.",
-      "Use the action panel to copy the FIDO URI.",
+      "Use the Request Passkey action to hand this request to a registered FIDO app.",
     ].join("\n\n");
   }
   return `# QR Code Content\n\n${escapeMarkdown(result.value)}`;
+}
+
+async function requestPasskey(uri: string): Promise<void> {
+  try {
+    await open(uri);
+  } catch {
+    await showToast({
+      style: Toast.Style.Failure,
+      title: "Unable to request passkey",
+      message: "No app registered for FIDO requests. Use a compatible passkey device to scan the original QR code.",
+    });
+  }
 }
 
 function escapeMarkdown(value: string): string {
