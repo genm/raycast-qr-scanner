@@ -7,11 +7,14 @@ Thanks for helping improve QR Scanner. Small, focused fixes and documentation im
 You need macOS 14 or newer, Raycast with extension development support, Node.js 22.22.2 or newer, and Xcode 16.3 or newer with Swift 6 support.
 
 ```sh
-npm ci
-npm run check
+mise install
+mise run setup
+mise run check
 ```
 
-Use `npm install` only when intentionally changing dependencies and committing the corresponding `package-lock.json` update.
+The mise configuration reads the Node.js version from `.node-version`, pins the same npm version declared by `packageManager`, and provides the repository's Actionlint and ShellCheck versions. The repository check fails if the Node.js or npm declarations drift, and `mise run check` validates GitHub Actions before running the npm checks. If mise is unavailable, use Node.js 22.22.2 or newer with the npm version declared in `package.json`, then run `npm ci` and `npm run check` directly.
+
+Use `npm install` only when intentionally changing dependencies and committing the corresponding `package-lock.json` update. Exact dependency versions are saved by default. Install scripts fail closed unless their reviewed, version-pinned package appears in `allowScripts` in `package.json`.
 
 Import the repository with Raycast's **Import Extension** command and use `npm run dev` for an interactive test. Camera and screen flows require their corresponding macOS permissions; clipboard scanning does not.
 

@@ -5,10 +5,10 @@
 Run the repository-wide check from the project root:
 
 ```sh
-npm run check
+mise run check
 ```
 
-This command runs TypeScript type checking, Raycast linting, TypeScript tests, Swift tests, a production extension build, and a high-severity production-dependency audit. Run it on macOS, and stop `npm run dev` before starting because debug and release builds share one Swift build database.
+This task validates GitHub Actions with Actionlint, then runs `npm run check`, which performs TypeScript type checking, Raycast linting, TypeScript tests, Swift tests, a production extension build, and a high-severity production-dependency audit. Run it on macOS, and stop `npm run dev` before starting because debug and release builds share one Swift build database. Running `npm run check` directly covers the application checks when the declared Node.js and npm versions are already active.
 
 Machine-readable results are written to:
 
@@ -39,7 +39,7 @@ CLI adapter tests inject a scanner instead of accessing real protected resources
 
 The distance ratios are test inputs, not promised camera limits. Real recognition also depends on focus, lighting, contrast, perspective, damage, and camera characteristics.
 
-GitHub Actions runs the same `npm run check` command on `macos-15` with Xcode 16.4. A Windows job separately checks the error contract, types, lint, TypeScript tests, and production dependency audit without trying to compile the macOS Swift package. Failed machine-readable test results are uploaded for three days; successful runs do not upload them.
+GitHub Actions installs the npm version declared by `packageManager` and performs a clean `npm ci` on both platforms. The macOS job runs the same `npm run check` command on `macos-15` with Xcode 16.4. A Windows job separately checks the development-toolchain and error contracts, types, lint, TypeScript tests, and production dependency audit without trying to compile the macOS Swift package. Failed machine-readable test results are uploaded for three days; successful runs do not upload them.
 
 The TypeScript matrix generates real PNG QR fixtures, including two distinct QR codes in one image and a QR-free image. It exercises the production PNG-to-RGBA and local decoding path used by every Windows source.
 

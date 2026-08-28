@@ -29,11 +29,14 @@ jobs:
           node-version-file: .node-version
           cache: npm
 
+      - name: Set up the declared npm version
+        uses: ./.github/actions/setup-npm
+
       - name: Install dependencies
         run: npm ci
 
       - name: Check Windows adapter and shared UI
-        run: npm run check:error-contract && npm run typecheck && npm run lint && npm test && npm run audit:dependencies
+        run: npm run check:toolchain && npm run check:error-contract && npm run typecheck && npm run lint && npm test && npm run audit:dependencies
 
       - name: Preserve failed test results
         if: failure()
@@ -59,6 +62,9 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
+
+      - name: Set up the declared npm version
+        uses: ./.github/actions/setup-npm
 
       # Keep hosted builds on the stable Xcode toolchain shipped by the pinned runner image.
       - name: Select Xcode 16.4

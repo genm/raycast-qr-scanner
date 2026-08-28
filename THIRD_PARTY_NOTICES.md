@@ -13,7 +13,7 @@ The project source is licensed under MIT. Third-party dependencies retain their 
 
 Run `npm audit --omit=dev` for known npm vulnerabilities and inspect lockfile license metadata when dependencies change. Automated metadata is evidence, not a legal compatibility conclusion.
 
-The pinned `allowScripts` entries permit esbuild's binary integrity/install check and fsevents' macOS native setup after review of those exact package versions. Re-review the scripts before changing either pin.
+The pinned `allowScripts` entries permit esbuild's binary integrity/install check and fsevents' macOS native setup after review of those exact package versions. `.npmrc` enables `strict-allow-scripts`, so a newly introduced dependency install script fails instead of running or being silently skipped. Re-review the scripts before changing either pin.
 
 ## Project assets
 

@@ -1,0 +1,24 @@
+[settings]
+idiomatic_version_file_enable_tools = ["node"]
+
+[tools]
+actionlint = "1.7.12"
+"npm:npm" = "11.19.1"
+shellcheck = "0.11.0"
+
+[tasks.setup]
+description = "Install the locked JavaScript dependencies"
+run = "npm ci"
+
+[tasks.check]
+description = "Run the repository-wide verification suite"
+depends = ["lint:actions"]
+run = "npm run check"
+
+[tasks."lint:actions"]
+description = "Validate GitHub Actions workflows"
+run = "actionlint .github/workflows/*.yml"
+
+[tasks.dev]
+description = "Start Raycast extension development"
+run = "npm run dev"

@@ -43,13 +43,16 @@ Opening a recognized `http`, `https`, `mailto`, or `tel` payload is always a sep
 - macOS 14 or newer, or Windows 10/11 with Windows Camera installed. macOS screen scanning uses Apple's one-shot `SCScreenshotManager` API.
 - Raycast with extension development support.
 - Node.js 22.22.2 or newer for development.
+- The npm version declared by `packageManager`. The repository pins it because its install-script allowlist is part of the dependency security policy.
 - Xcode 16.3 or newer with Swift 6 support when building on macOS. The current checks also pass with Xcode 26.6; CI pins Xcode 16.4 for a stable hosted toolchain.
 
 ## Install for development
 
-1. Run `npm ci` in this directory. Use `npm install` only when intentionally changing dependencies and the lockfile.
+1. Install the declared Node.js, npm, and workflow-linting tools with `mise install`, then run `mise run setup`. Without mise, use Node.js 22.22.2 or newer and the npm version declared in `package.json`, then run `npm ci`.
 2. In Raycast, run **Import Extension** and select this directory.
-3. Run `npm run dev`, or start development from Raycast's **Manage Extensions** command.
+3. Run `mise run dev` (or `npm run dev`), or start development from Raycast's **Manage Extensions** command.
+
+Use `npm install` only when intentionally changing dependencies and the lockfile. npm is configured to save exact versions, reject incompatible Node.js engines, and fail when a dependency introduces an unreviewed install script.
 
 On macOS, protected resources are attributed to Raycast. The first camera or screen scan can show a system permission prompt. If access was denied, use the command's **Open System Settings** action, grant the permission to Raycast, and restart Raycast when macOS requests it. On Windows, accept any camera prompt shown by Windows Camera.
 
