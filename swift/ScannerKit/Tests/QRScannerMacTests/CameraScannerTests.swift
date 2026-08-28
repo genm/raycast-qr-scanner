@@ -27,21 +27,52 @@ final class CameraScannerTests: XCTestCase {
   func testCameraHostPresentationIgnoresScannerProcess() {
     let application = PresentingApplicationSpy()
 
-    XCTAssertNil(CameraHostPresentation.capture(
+    XCTAssertNil(CameraHostPresentation.select(
+      preferredApplication: nil,
       frontmostApplication: application,
       currentProcessIdentifier: application.processIdentifier
     ))
   }
 
-  func testCameraHostPresentationCapturesExternalApplication() {
-    let application = PresentingApplicationSpy()
+  func testCameraHostPresentationSelectsPreferredApplicationBeforeFrontmostApplication() {
+    let preferredApplication = PresentingApplicationSpy()
+    let frontmostApplication = PresentingApplicationSpy()
+    frontmostApplication.processIdentifier = 43
 
-    let captured = CameraHostPresentation.capture(
-      frontmostApplication: application,
-      currentProcessIdentifier: application.processIdentifier + 1
+    let captured = CameraHostPresentation.select(
+      preferredApplication: preferredApplication,
+      frontmostApplication: frontmostApplication,
+      currentProcessIdentifier: 44
     )
 
-    XCTAssertTrue(captured === application)
+    XCTAssertTrue(captured === preferredApplication)
+  }
+
+  func testCameraHostPresentationFallsBackToFrontmostApplication() {
+    let frontmostApplication = PresentingApplicationSpy()
+
+    let captured = CameraHostPresentation.select(
+      preferredApplication: nil,
+      frontmostApplication: frontmostApplication,
+      currentProcessIdentifier: frontmostApplication.processIdentifier + 1
+    )
+
+    XCTAssertTrue(captured === frontmostApplication)
+  }
+
+  func testCameraHostPresentationSkipsTerminatedPreferredApplication() {
+    let preferredApplication = PresentingApplicationSpy()
+    preferredApplication.isTerminated = true
+    let frontmostApplication = PresentingApplicationSpy()
+    frontmostApplication.processIdentifier = 43
+
+    let captured = CameraHostPresentation.select(
+      preferredApplication: preferredApplication,
+      frontmostApplication: frontmostApplication,
+      currentProcessIdentifier: 44
+    )
+
+    XCTAssertTrue(captured === frontmostApplication)
   }
 
   func testCameraHostPresentationRestoresLiveApplication() {
@@ -59,6 +90,31 @@ final class CameraScannerTests: XCTestCase {
     CameraHostPresentation.restore(application)
 
     XCTAssertNil(application.activationOptions)
+  }
+
+  func testCameraHostPresentationOpensRevealURL() throws {
+    let url = try XCTUnwrap(URL(string: "raycast://"))
+    var openedURL: URL?
+
+    let didOpen = CameraHostPresentation.reveal(url) {
+      openedURL = $0
+      return true
+    }
+
+    XCTAssertTrue(didOpen)
+    XCTAssertEqual(openedURL, url)
+  }
+
+  func testCameraHostPresentationDoesNotOpenMissingRevealURL() {
+    var didCallOpen = false
+
+    let didOpen = CameraHostPresentation.reveal(nil) { _ in
+      didCallOpen = true
+      return true
+    }
+
+    XCTAssertFalse(didOpen)
+    XCTAssertFalse(didCallOpen)
   }
 
   func testDecodesQRCodeFromCameraSampleBuffer() throws {

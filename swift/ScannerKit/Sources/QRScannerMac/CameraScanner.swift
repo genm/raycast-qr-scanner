@@ -8,7 +8,10 @@ import QRScannerCore
 import QuartzCore
 
 public enum CameraScanner {
-  public static func scan() async throws -> [ScanResult] {
+  public static func scan(
+    presentingApplicationBundleIdentifier: String? = nil,
+    presentingApplicationRevealURL: URL? = nil
+  ) async throws -> [ScanResult] {
     switch AVCaptureDevice.authorizationStatus(for: .video) {
     case .authorized:
       break
@@ -24,7 +27,10 @@ public enum CameraScanner {
       throw ScanError.cameraPermissionDenied
     }
 
-    return try await CameraScanController.run()
+    return try await CameraScanController.run(
+      presentingApplicationBundleIdentifier: presentingApplicationBundleIdentifier,
+      presentingApplicationRevealURL: presentingApplicationRevealURL
+    )
   }
 }
 
@@ -111,17 +117,40 @@ extension NSRunningApplication: CameraPresentingApplication {}
 
 enum CameraHostPresentation {
   static func capture(
+    preferredBundleIdentifier: String?,
     frontmostApplication: CameraPresentingApplication? = NSWorkspace.shared.frontmostApplication,
     currentProcessIdentifier: pid_t = ProcessInfo.processInfo.processIdentifier
   ) -> CameraPresentingApplication? {
-    guard frontmostApplication?.processIdentifier != currentProcessIdentifier else { return nil }
-    return frontmostApplication
+    let preferredApplication = preferredBundleIdentifier.flatMap {
+      NSRunningApplication.runningApplications(withBundleIdentifier: $0).first
+    }
+    return select(
+      preferredApplication: preferredApplication,
+      frontmostApplication: frontmostApplication,
+      currentProcessIdentifier: currentProcessIdentifier
+    )
+  }
+
+  static func select(
+    preferredApplication: CameraPresentingApplication?,
+    frontmostApplication: CameraPresentingApplication?,
+    currentProcessIdentifier: pid_t
+  ) -> CameraPresentingApplication? {
+    [preferredApplication, frontmostApplication]
+      .compactMap { $0 }
+      .first { !$0.isTerminated && $0.processIdentifier != currentProcessIdentifier }
   }
 
   static func restore(_ application: CameraPresentingApplication?) {
     guard let application, !application.isTerminated else { return }
     // The native scanner may outlive the launcher's foreground state; restore it so returned results are visible.
     application.activate(options: [.activateAllWindows])
+  }
+
+  @discardableResult
+  static func reveal(_ url: URL?, using open: (URL) -> Bool) -> Bool {
+    guard let url else { return false }
+    return open(url)
   }
 }
 
@@ -179,15 +208,31 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
   private var notificationTokens: [NSObjectProtocol] = []
   private var continuation: CheckedContinuation<[ScanResult], Error>?
   private var presentingApplication: CameraPresentingApplication?
+  private let presentingApplicationBundleIdentifier: String?
+  private let presentingApplicationRevealURL: URL?
   private var didFinish = false
   private var isApplicationRunLoopRunning = false
 
-  static func run() async throws -> [ScanResult] {
+  private init(
+    presentingApplicationBundleIdentifier: String?,
+    presentingApplicationRevealURL: URL?
+  ) {
+    self.presentingApplicationBundleIdentifier = presentingApplicationBundleIdentifier
+    self.presentingApplicationRevealURL = presentingApplicationRevealURL
+  }
+
+  static func run(
+    presentingApplicationBundleIdentifier: String? = nil,
+    presentingApplicationRevealURL: URL? = nil
+  ) async throws -> [ScanResult] {
     guard activeController == nil else {
       throw ScanError.cameraConfigurationFailed
     }
 
-    let controller = CameraScanController()
+    let controller = CameraScanController(
+      presentingApplicationBundleIdentifier: presentingApplicationBundleIdentifier,
+      presentingApplicationRevealURL: presentingApplicationRevealURL
+    )
     activeController = controller
     return try await withTaskCancellationHandler {
       try await withCheckedThrowingContinuation { continuation in
@@ -212,7 +257,9 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
   }
 
   private func start() throws {
-    presentingApplication = CameraHostPresentation.capture()
+    presentingApplication = CameraHostPresentation.capture(
+      preferredBundleIdentifier: presentingApplicationBundleIdentifier
+    )
 
     guard let camera = AVCaptureDevice.default(for: .video) else {
       throw ScanError.cameraUnavailable
@@ -457,6 +504,11 @@ private final class CameraScanController: NSObject, AVCaptureVideoDataOutputSamp
     panel?.delegate = nil
     panel?.orderOut(nil)
     CameraHostPresentation.restore(presentingApplication)
+    if presentingApplicationRevealURL != nil,
+       !CameraHostPresentation.reveal(presentingApplicationRevealURL, using: NSWorkspace.shared.open)
+    {
+      CameraDiagnostics.logger.error("The presenting application reveal URL could not be opened")
+    }
     presentingApplication = nil
     notificationTokens.forEach(NotificationCenter.default.removeObserver)
     notificationTokens.removeAll()

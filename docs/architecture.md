@@ -40,7 +40,7 @@ sequenceDiagram
     R->>R: Render result list and explicit actions
 ```
 
-The panel uses the `.nonactivatingPanel` style and `orderFrontRegardless()`. It remains visible without activating the Swift helper. The controller records the foreground application before opening the panel and restores that application after hiding the panel, before returning the scan result. This keeps Raycast results visible while also preserving the CLI caller's terminal when the shared scanner is used outside Raycast.
+The panel uses the `.nonactivatingPanel` style and `orderFrontRegardless()`. It remains visible without activating the Swift helper. The Raycast adapter identifies `com.raycast.macos` as the presenting application because Raycast's overlay does not always become macOS's reported frontmost application. It also supplies the bare `raycast://` reveal URL: ordinary `NSRunningApplication.activate` does not show Raycast's launcher window, while opening that application scheme reveals the existing view without launching another command. Other adapters omit the URL and fall back to normal application activation, which preserves the CLI caller's terminal.
 
 `AVCaptureVideoDataOutput` requests `kCVPixelFormatType_32BGRA`. CI fixtures exercise that requested sample-buffer format and the production `CMSampleBuffer → Vision → ScanResult` code path. Hardware capture, TCC, and Raycast integration remain manual acceptance checks. Frame processing runs on one serial queue and discards late frames.
 

@@ -24,7 +24,7 @@ When reporting a remaining mismatch, state whether it is horizontal, vertical, m
 
 ## Camera closes but no result is visible
 
-The camera uses a nonactivating `NSPanel` and restores the application that opened it when scanning finishes. Activating the Swift helper itself can leave the Raycast view that is waiting for results in the background. Stop and restart `npm run dev` after rebuilding so Raycast is not using an older native helper.
+The camera uses a nonactivating `NSPanel`, and the Raycast bridge explicitly restores Raycast when scanning finishes. It does not rely on macOS's reported frontmost application because Raycast's overlay may not own that state, and normal application activation does not reveal the launcher. The bridge therefore opens the bare `raycast://` application scheme after hiding the camera panel; it does not relaunch the scan command or discard its result state. Stop and restart `npm run dev` after rebuilding so Raycast is not using an older native helper.
 
 Expected behavior is:
 

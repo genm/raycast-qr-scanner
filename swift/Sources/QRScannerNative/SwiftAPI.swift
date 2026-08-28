@@ -5,7 +5,10 @@ import RaycastSwiftMacros
 
 @raycast
 func scanCamera() async throws -> [ScanResult] {
-  try await CameraScanner.scan()
+  try await CameraScanner.scan(
+    presentingApplicationBundleIdentifier: "com.raycast.macos",
+    presentingApplicationRevealURL: URL(string: "raycast://")
+  )
 }
 
 @raycast
