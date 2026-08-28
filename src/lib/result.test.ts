@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import { classifyScanResult, deduplicateScanResults, parseWifiPayload } from "./result";
 
+const FIDO_HYBRID_URI =
+  "FIDO:/333536986729023101900514898282206507478832499810394616328939171432525164832007214567361368903544184100030234061231042500070214287790524650362650854032130107096654083076";
+
 describe("classifyScanResult", () => {
   it.each([
     ["https://example.test/path", "url"],
     ["mailto:user@example.test", "email"],
     ["tel:+12025550123", "phone"],
     ["WIFI:T:WPA;S:Office;P:correct-horse;;", "wifi"],
+    [FIDO_HYBRID_URI, "fido"],
     ["ordinary text", "text"],
   ] as const)("classifies %s as %s", (value, expectedKind) => {
     expect(classifyScanResult({ value, source: "screen" }).kind).toBe(expectedKind);
@@ -19,6 +23,21 @@ describe("classifyScanResult", () => {
     expect(result.kind).toBe("text");
     expect(result.openTarget).toBeUndefined();
   });
+
+  it("presents a valid FIDO hybrid URI without offering an unsupported macOS open action", () => {
+    const result = classifyScanResult({ value: FIDO_HYBRID_URI, source: "camera" });
+
+    expect(result).toMatchObject({ kind: "fido", title: "FIDO Authentication" });
+    expect(result.openTarget).toBeUndefined();
+    expect(classifyScanResult({ value: FIDO_HYBRID_URI.toLowerCase(), source: "camera" }).kind).toBe("fido");
+  });
+
+  it.each(["FIDO://123", "FIDO:/12a3", "FIDO:/", "FIDO:/1", "FIDO:/999", "FIDO:/99999999999999999"])(
+    "keeps malformed FIDO content as text: %s",
+    (value) => {
+      expect(classifyScanResult({ value, source: "screen" }).kind).toBe("text");
+    },
+  );
 });
 
 describe("deduplicateScanResults", () => {

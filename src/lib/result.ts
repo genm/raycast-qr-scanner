@@ -6,7 +6,7 @@ export type NativeScanResult = {
   displayID?: number;
 };
 
-export type ResultKind = "url" | "email" | "phone" | "wifi" | "text";
+export type ResultKind = "url" | "email" | "phone" | "wifi" | "fido" | "text";
 
 export type ClassifiedScanResult = NativeScanResult & {
   kind: ResultKind;
@@ -23,6 +23,17 @@ export type WifiPayload = {
 };
 
 const OPENABLE_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:"]);
+const FIDO_DIGIT_CHUNK_LENGTH = 17;
+const FIDO_FULL_CHUNK_MAX_VALUE = (1n << 56n) - 1n;
+const FIDO_TRAILING_CHUNK_MAX_VALUES = new Map<number, bigint>([
+  [0, 0n],
+  [3, (1n << 8n) - 1n],
+  [5, (1n << 16n) - 1n],
+  [8, (1n << 24n) - 1n],
+  [10, (1n << 32n) - 1n],
+  [13, (1n << 40n) - 1n],
+  [15, (1n << 48n) - 1n],
+]);
 
 export function classifyScanResult(result: NativeScanResult): ClassifiedScanResult {
   const wifi = parseWifiPayload(result.value);
@@ -33,6 +44,10 @@ export function classifyScanResult(result: NativeScanResult): ClassifiedScanResu
       title: wifi.ssid ? `Wi-Fi: ${wifi.ssid}` : "Wi-Fi Network",
       wifi,
     };
+  }
+
+  if (isFidoHybridURI(result.value)) {
+    return { ...result, kind: "fido", title: "FIDO Authentication" };
   }
 
   try {
@@ -46,6 +61,26 @@ export function classifyScanResult(result: NativeScanResult): ClassifiedScanResu
   }
 
   return { ...result, kind: "text", title: result.value };
+}
+
+export function isFidoHybridURI(value: string): boolean {
+  const match = /^fido:\/([0-9]+)$/i.exec(value);
+  if (!match) return false;
+
+  const encoded = match[1];
+  const trailingLength = encoded.length % FIDO_DIGIT_CHUNK_LENGTH;
+  const trailingMaxValue = FIDO_TRAILING_CHUNK_MAX_VALUES.get(trailingLength);
+  if (trailingMaxValue === undefined) return false;
+
+  const completeLength = encoded.length - trailingLength;
+  for (let index = 0; index < completeLength; index += FIDO_DIGIT_CHUNK_LENGTH) {
+    if (BigInt(encoded.slice(index, index + FIDO_DIGIT_CHUNK_LENGTH)) > FIDO_FULL_CHUNK_MAX_VALUE) {
+      return false;
+    }
+  }
+
+  // CTAP assigns a fixed decimal width to each possible trailing byte count.
+  return trailingLength === 0 || BigInt(encoded.slice(completeLength)) <= trailingMaxValue;
 }
 
 export function deduplicateScanResults(results: NativeScanResult[]): NativeScanResult[] {

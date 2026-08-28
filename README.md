@@ -10,7 +10,7 @@ This project is pre-release software for macOS. The source and CLI are ready for
 - **Scan QR from Screen** captures each connected display once and returns every QR code it finds.
 - **Scan QR from Clipboard** reads copied images without requiring Screen Recording access.
 
-Every result remains in Raycast until you explicitly open or copy it. This prevents an untrusted QR code from triggering a network request or launching another application without confirmation. Wi-Fi payloads show their parsed fields and provide separate copy actions. Duplicate payloads found on more than one display are shown once.
+Every result remains in Raycast until you explicitly open or copy it. This prevents an untrusted QR code from triggering a network request or launching another application without confirmation. Wi-Fi payloads show their parsed fields and provide separate copy actions. FIDO hybrid authentication payloads are identified separately and expose a copy action without a broken macOS open action. Duplicate payloads found on more than one display are shown once.
 
 The camera preview is a nonactivating macOS panel: it stays visible without taking focus from Raycast. When scanning finishes, the scanner restores the application that opened it so the returned result view is visible.
 
@@ -36,7 +36,7 @@ Camera and Screen Recording approval for the CLI is separate from Raycast. macOS
 - The extension has no telemetry, analytics, accounts, update checks, or extension-owned network service.
 - QR content is retained only by Raycast's normal UI and clipboard behavior. This extension does not create its own files or database.
 
-Opening a recognized `http`, `https`, `mailto`, or `tel` payload is always a separate user action. Other URI schemes are displayed as text.
+Opening a recognized `http`, `https`, `mailto`, or `tel` payload is always a separate user action. Valid `FIDO:/` hybrid authentication payloads are labeled as FIDO requests but are not opened on the scanning Mac; the QR-initiated flow is completed by a compatible nearby passkey device. Other URI schemes are displayed as text.
 
 ## Requirements
 

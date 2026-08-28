@@ -83,7 +83,10 @@ function ResultActions({ result }: { result: ClassifiedScanResult }) {
       {result.openTarget && (
         <Action title="Open" icon={Icon.ArrowNe} onAction={() => open(result.openTarget as string)} />
       )}
-      <Action.CopyToClipboard title="Copy QR Content" content={result.value} />
+      <Action.CopyToClipboard
+        title={result.kind === "fido" ? "Copy FIDO URI" : "Copy QR Content"}
+        content={result.value}
+      />
       {result.wifi?.password && <Action.CopyToClipboard title="Copy Wi-Fi Password" content={result.wifi.password} />}
     </ActionPanel>
   );
@@ -94,6 +97,7 @@ function iconForKind(kind: ClassifiedScanResult["kind"]): Icon {
   if (kind === "email") return Icon.Envelope;
   if (kind === "phone") return Icon.Phone;
   if (kind === "wifi") return Icon.Wifi;
+  if (kind === "fido") return Icon.Key;
   return Icon.Text;
 }
 
@@ -115,6 +119,14 @@ function wifiMarkdown(result: ClassifiedScanResult): string {
 
 function resultMarkdown(result: ClassifiedScanResult): string {
   if (result.wifi) return wifiMarkdown(result);
+  if (result.kind === "fido") {
+    return [
+      "# FIDO Authentication",
+      "This is a FIDO hybrid authentication request. Complete it with a compatible nearby passkey device.",
+      "The URI can contain one-time authentication material. Share it only with the intended authenticator.",
+      "Use the action panel to copy the FIDO URI.",
+    ].join("\n\n");
+  }
   return `# QR Code Content\n\n${escapeMarkdown(result.value)}`;
 }
 
