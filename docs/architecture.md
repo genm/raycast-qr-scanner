@@ -1,6 +1,6 @@
 # Architecture and Data Flow
 
-QR Scanner has a Raycast TypeScript UI, a Swift package with reusable libraries and the Raycast bridge, and a separate CLI package. The TypeScript layer owns Raycast command state, result classification, and user actions. `QRScannerCore` owns Raycast-independent macOS models, errors, and Vision QR recognition; `QRScannerMac` owns protected macOS APIs and native UI; `QRScannerNative` is the executable Raycast bridge; `QRScannerCLI` presents the same scanner operations through JSON and process exit status.
+QR Scanner has a cross-platform Raycast TypeScript UI, OS-specific capture adapters, reusable macOS Swift libraries, and a separate macOS CLI package. The TypeScript layer owns Raycast command state, result classification, and user actions. On macOS, `QRScannerCore` owns models, errors, and Vision QR recognition; `QRScannerMac` owns protected APIs and native UI; `QRScannerNative` is the executable Raycast bridge. On Windows, `src/lib/windows.ts` captures images with built-in PowerShell/.NET APIs and `src/lib/qr-image.ts` decodes them locally.
 
 ## Component boundaries
 
@@ -8,15 +8,17 @@ QR Scanner has a Raycast TypeScript UI, a Swift package with reusable libraries 
 | -------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | Command entry points | `src/scan-*.tsx`                                                    | Select the camera, screen, or clipboard source.                                        |
 | Shared result UI     | `src/components/scan-command.tsx`                                   | Show loading and error states, list results, and expose explicit open or copy actions. |
-| Native bridge        | `src/lib/native.ts`, `swift/Sources/QRScannerNative/SwiftAPI.swift` | Invoke Swift through Raycast's `extensions-swift-tools` JSON bridge.                   |
+| OS adapter router    | `src/lib/native.ts`                                                   | Select the Swift bridge on macOS or the TypeScript adapter on Windows.                 |
+| Windows capture      | `src/lib/windows.ts`, `src/lib/qr-image.ts`                           | Capture local PNG images and decode all visible QR payloads.                           |
+| macOS native bridge  | `swift/Sources/QRScannerNative/SwiftAPI.swift`                        | Invoke Swift through Raycast's `extensions-swift-tools` JSON bridge.                   |
 | CLI adapter          | `cli/Sources/QRScannerCLI`                                          | Parse commands and expose scanner results and errors as process-safe JSON.             |
 | Core contract        | `swift/ScannerKit/Sources/QRScannerCore`                            | Define result JSON, stable error codes, source values, and Vision QR recognition.      |
 | macOS integration    | `swift/ScannerKit/Sources/QRScannerMac`                             | Acquire camera, screen, and clipboard images and present the native camera panel.      |
 | TypeScript contract  | `src/lib/result.ts`                                                 | Classify returned payloads and expose only supported explicit actions.                 |
 
-The bridge returns an array of `ScanResult` values. It never opens a payload automatically. The Raycast action panel is the only place that opens supported URL schemes or copies content.
+Both adapters return an array of `ScanResult` values. Neither opens a payload automatically. The Raycast action panel is the only place that opens supported URL schemes or copies content.
 
-Dependencies flow toward the shared implementation: `QRScannerNative → QRScannerMac → QRScannerCore` and `QRScannerCLI → QRScannerMac → QRScannerCore`. The CLI is a separate Swift package with a local dependency on the library products, while only the Raycast package depends on Raycast's macros and build plugins. This also preserves Raycast's requirement that its imported package expose exactly one executable target. A future MCP adapter should be another package that calls Core and Mac APIs directly, not one that parses CLI output or reimplements scanning rules.
+macOS dependencies flow toward the shared implementation: `QRScannerNative → QRScannerMac → QRScannerCore` and `QRScannerCLI → QRScannerMac → QRScannerCore`. The Windows dependency flow is `Raycast command → windows.ts → PowerShell/.NET capture → qr-image.ts`. The CLI is a separate Swift package with a local dependency on the library products, while only the Raycast macOS package depends on Raycast's macros and build plugins.
 
 ## Camera sequence
 
@@ -56,8 +58,12 @@ Screen scanning enumerates visible displays with `SCShareableContent`, captures 
 
 Clipboard scanning reads image data from `NSPasteboard` and uses the same decoder. An absent image and an image containing no QR code remain different errors.
 
+On Windows, one PowerShell invocation captures each display to an isolated per-scan directory. Clipboard scanning saves the current clipboard image to the same kind of temporary directory. `pngjs` exposes RGBA pixels and `jsQR` repeatedly decodes and erases matched regions so one image can return multiple QR codes without a result-count limit. Temporary files are removed in a `finally` path.
+
+The Windows camera command opens the registered `microsoft.windows.camera:` application. It captures only the visible Windows Camera window, scans it repeatedly, and restores Raycast after detection or after the user closes Camera. Camera permission and preview UI therefore remain owned by Windows Camera rather than an extension-managed native binary.
+
 ## Privacy and observability
 
-Captured images are processed locally in memory. Decoded results are returned to the Raycast UI; the extension does not send image data or QR payloads to an external service. The extension has no telemetry or extension-owned network service. Unified Logging records lifecycle facts such as session start, first-frame dimensions and pixel format, detected count, Vision errors, and completion reason. The implementation does not intentionally log QR payloads or image data; diagnostics must still be reviewed before sharing.
+Captured images and decoded results remain local; the extension does not send image data or QR payloads to an external service. macOS images are processed in memory. Windows images briefly exist in an isolated extension-support temporary directory that is removed on every completion path. The extension has no telemetry or extension-owned network service. On macOS, Unified Logging records lifecycle facts such as session start, first-frame dimensions and pixel format, detected count, Vision errors, and completion reason. The implementation does not intentionally log QR payloads or image data; diagnostics must still be reviewed before sharing.
 
 See [troubleshooting.md](troubleshooting.md) for the privacy-safe log predicate.

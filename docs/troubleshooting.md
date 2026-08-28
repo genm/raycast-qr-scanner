@@ -6,15 +6,17 @@ Open **System Settings > Privacy & Security > Camera** and allow Raycast. Run th
 
 If no camera is installed or available, Raycast reports that no available camera was found; changing Camera permission cannot create missing hardware. A managed or restricted Mac can also prevent access even when the user cannot change the privacy toggle.
 
+On Windows, the command opens the registered Windows Camera app instead of a Raycast-owned panel. Confirm Windows Camera is installed and can show a preview on its own. Camera permission is granted to Windows Camera in **Settings > Privacy & security > Camera**. Closing that window before detection intentionally returns a cancellation result to Raycast.
+
 ## Camera is active but no QR is detected
 
 - Use an undamaged QR code with adequate contrast and lighting.
 - Keep the entire quiet zone visible.
 - Try a larger presentation before moving the code farther away.
 - Avoid motion blur and severe perspective angles.
-- Confirm the status has changed to `Camera active — looking for QR code…`; the opening message alone does not prove that frames reached Vision.
+- On macOS, confirm the status has changed to `Camera active — looking for QR code…`; the opening message alone does not prove that frames reached Vision.
 
-The CI pipeline covers rotations, mirroring, several apparent distances, and QR-free frames. A reproducible live-camera failure should include the macOS version, camera model, Raycast version, and privacy-safe logs—not the QR payload or an unredacted camera image.
+The CI pipeline covers rotations, mirroring, several apparent distances, multiple QR codes, and QR-free frames. A reproducible live-camera failure should include the OS version, camera model, Raycast version, and privacy-safe diagnostics—not the QR payload or an unredacted camera image.
 
 ## Highlight does not surround the QR code
 
@@ -35,6 +37,8 @@ Expected behavior is:
 5. show the result list in the existing Raycast view.
 
 Scanning never opens a URL automatically. Use the result's action panel to open or copy it.
+
+On Windows, the extension restores Raycast through the bare `raycast://` application scheme after detection or cancellation. It does not terminate Windows Camera; Raycast simply returns to the foreground and leaves app lifecycle control with the user.
 
 ## Build reports a Swift package or build-database conflict
 
@@ -57,4 +61,4 @@ Review the output before sharing it. Remove usernames, paths, unrelated process 
 
 ## Permission-specific errors
 
-Raycast presents distinct guidance and actions for Camera and Screen Recording permission denials. Restricted camera access is reported as a policy restriction. Clipboard scanning does not require either permission. An image without a QR code is different from an empty clipboard and should remain a `No QR Code Found` result rather than a permission error.
+On macOS, Raycast presents distinct guidance and actions for Camera and Screen Recording permission denials. Restricted camera access is reported as a policy restriction. On Windows, Windows Camera owns its camera permission UI and screen capture uses built-in desktop APIs. Clipboard scanning does not require either permission. An image without a QR code is different from an empty clipboard and should remain a `No QR Code Found` result rather than a permission error.

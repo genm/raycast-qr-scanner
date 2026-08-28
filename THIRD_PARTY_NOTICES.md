@@ -8,6 +8,7 @@ The project source is licensed under MIT. Third-party dependencies retain their 
 - Swift dependency versions and revisions are authoritative in `swift/Package.resolved`.
 - `swift-syntax` is distributed under Apache-2.0 at the pinned revision.
 - Raycast's `extensions-swift-tools` is an official build-time bridge pinned in `swift/Package.resolved`. Its upstream repository did not declare a license when this notice was last reviewed on 2026-08-27. It is not vendored here. Maintainers must re-check its terms before distributing generated native artifacts outside the Raycast extension workflow.
+- `jsQR` is distributed under Apache-2.0 and performs local QR decoding for the Windows adapter. `pngjs` is distributed under MIT and reads the temporary PNG captures.
 - Apple's AVFoundation, AppKit, Core Image, ScreenCaptureKit, and Vision frameworks and the Raycast API are platform dependencies governed separately from this repository's MIT license.
 
 Run `npm audit --omit=dev` for known npm vulnerabilities and inspect lockfile license metadata when dependencies change. Automated metadata is evidence, not a legal compatibility conclusion.
