@@ -3,8 +3,12 @@ import QRScannerCore
 import ScreenCaptureKit
 
 public enum ScreenScanner {
-  public static func scan() async throws -> [ScanResult] {
-    guard CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() else {
+  public static func scan(requestPermissionIfNeeded: Bool = true) async throws -> [ScanResult] {
+    guard ScreenCaptureAuthorization.isGranted(
+      requestPermissionIfNeeded: requestPermissionIfNeeded,
+      preflight: CGPreflightScreenCaptureAccess,
+      request: CGRequestScreenCaptureAccess
+    ) else {
       throw ScanError.screenPermissionDenied
     }
 
@@ -32,5 +36,17 @@ public enum ScreenScanner {
     }
 
     return results
+  }
+}
+
+enum ScreenCaptureAuthorization {
+  static func isGranted(
+    requestPermissionIfNeeded: Bool,
+    preflight: () -> Bool,
+    request: () -> Bool
+  ) -> Bool {
+    guard !preflight() else { return true }
+    guard requestPermissionIfNeeded else { return false }
+    return request()
   }
 }

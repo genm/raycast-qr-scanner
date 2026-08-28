@@ -54,7 +54,7 @@ The Swift helper runs a nested AppKit event loop for the native panel. Work from
 
 ## Screen and clipboard sequences
 
-Screen scanning enumerates visible displays with `SCShareableContent`, captures each display once with `SCScreenshotManager`, and passes each image through the shared Vision decoder. The TypeScript layer removes duplicate payloads found on multiple displays.
+Screen scanning checks the existing Screen Recording grant before enumerating visible displays with `SCShareableContent`, captures each display once with `SCScreenshotManager`, and passes each image through the shared Vision decoder. The Raycast adapter uses preflight-only permission handling because its UI can link directly to System Settings; this avoids blocking on macOS's synchronous permission request. The CLI keeps request-if-needed behavior. The TypeScript layer removes duplicate payloads found on multiple displays.
 
 Clipboard scanning reads image data from `NSPasteboard` and uses the same decoder. An absent image and an image containing no QR code remain different errors.
 

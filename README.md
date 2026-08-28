@@ -31,7 +31,7 @@ Camera and Screen Recording approval for the CLI is separate from Raycast. macOS
 ## Privacy and permissions
 
 - On macOS, camera scans request Camera access for Raycast and process frames only in memory. On Windows, Windows Camera owns camera access and the extension scans its visible window.
-- On macOS, screen scans request Screen Recording access for Raycast. On Windows, PowerShell and .NET capture each visible display once.
+- On macOS, screen scans check existing Screen Recording access for Raycast and capture each visible display once. If access is missing, Raycast fails fast and offers a System Settings action instead of waiting for the synchronous macOS permission request. On Windows, PowerShell and .NET capture each visible display once.
 - Clipboard scans read image data from the current clipboard and do not request Camera or Screen Recording access.
 - The extension has no telemetry, analytics, accounts, update checks, or extension-owned network service.
 - Windows captures use a per-scan temporary directory inside Raycast's extension support directory and delete it on success or failure. QR content is retained only by Raycast's normal UI and clipboard behavior; the extension has no database or scan history.
@@ -51,6 +51,8 @@ Opening a recognized `http`, `https`, `mailto`, or `tel` payload is always a sep
 1. Install the declared Node.js, npm, and workflow-linting tools with `mise install`, then run `mise run setup`. Without mise, use Node.js 24.20.0 or newer and the npm version declared in `package.json`, then run `npm ci`.
 2. In Raycast, run **Import Extension** and select this directory.
 3. Run `mise run dev` (or `npm run dev`), or start development from Raycast's **Manage Extensions** command.
+
+macOS attributes protected resources to Raycast. The first camera scan can show a system permission prompt. Screen scanning checks the existing Screen Recording grant and, when it is missing, immediately offers **Open System Settings**. Grant the permission to Raycast and restart Raycast when macOS requests it.
 
 Use `npm install` only when intentionally changing dependencies and the lockfile. npm is configured to save exact versions, reject incompatible Node.js engines, and fail when a dependency introduces an unreviewed install script.
 

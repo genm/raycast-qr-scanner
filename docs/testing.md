@@ -78,7 +78,7 @@ Exercise the affected path when changing permissions or source capture:
 - macOS camera permission denied or restricted;
 - Windows Camera missing or closed before detection;
 - no camera available or capture interrupted;
-- Screen Recording permission denied;
+- Screen Recording permission denied; Raycast should fail fast with its System Settings action, while the standalone CLI may request access through macOS;
 - no visible display;
 - clipboard without an image;
 - valid image with no QR code;

@@ -62,3 +62,5 @@ Review the output before sharing it. Remove usernames, paths, unrelated process 
 ## Permission-specific errors
 
 On macOS, Raycast presents distinct guidance and actions for Camera and Screen Recording permission denials. Restricted camera access is reported as a policy restriction. On Windows, Windows Camera owns its camera permission UI and screen capture uses built-in desktop APIs. Clipboard scanning does not require either permission. An image without a QR code is different from an empty clipboard and should remain a `No QR Code Found` result rather than a permission error.
+ 
+Screen scans on macOS do not wait for macOS's synchronous Screen Recording permission request. When Raycast has no existing grant, the command immediately shows **Open System Settings**; enable Raycast, restart Raycast if requested, and run the command again. The standalone CLI retains its request-if-needed behavior and may show the macOS prompt itself.

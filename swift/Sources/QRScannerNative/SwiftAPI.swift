@@ -13,7 +13,8 @@ func scanCamera() async throws -> [ScanResult] {
 
 @raycast
 func scanScreen() async throws -> [ScanResult] {
-  try await ScreenScanner.scan()
+  // Raycast can show an actionable Settings state; avoid blocking on macOS's synchronous request dialog.
+  try await ScreenScanner.scan(requestPermissionIfNeeded: false)
 }
 
 @raycast
