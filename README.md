@@ -1,5 +1,10 @@
 # QR Scanner
 
+[![CI](https://github.com/genm/raycast-qr-scanner/actions/workflows/ci.yml/badge.svg)](https://github.com/genm/raycast-qr-scanner/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform: macOS 14+ / Windows](https://img.shields.io/badge/platform-macOS%2014%2B%20%7C%20Windows-lightgrey.svg)](README.md#requirements)
+[![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)](README.md#requirements)
+
 Scan QR codes from Raycast on macOS and Windows, or from the macOS command line, using a camera, every visible display, or an image on the clipboard. QR recognition runs locally; no image or QR content is sent to an external service.
 
 This project is pre-release software. The source and macOS CLI are ready for development and review; a Raycast Store release has not been published from this repository.

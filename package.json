@@ -8,6 +8,14 @@
   "author": "genm",
   "license": "MIT",
   "packageManager": "npm@11.19.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/genm/raycast-qr-scanner.git"
+  },
+  "bugs": {
+    "url": "https://github.com/genm/raycast-qr-scanner/issues"
+  },
+  "homepage": "https://github.com/genm/raycast-qr-scanner#readme",
   "categories": [
     "Productivity"
   ],
@@ -77,6 +85,8 @@
     "dev": "ray develop",
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",
+    "prepublishOnly": "echo \"\\\"Error: cannot publish this package directly to npm\\\"\" && exit 1",
+    "publish": "ray publish",
     "test": "vitest run --reporter=json --outputFile=test-results/vitest.json",
     "typecheck": "tsc --noEmit",
     "test:swift": "mkdir -p test-results && swift test --package-path swift/ScannerKit --parallel --xunit-output test-results/swift.xml && swift test --package-path cli --parallel --xunit-output test-results/swift-cli.xml"

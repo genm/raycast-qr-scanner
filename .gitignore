@@ -12,5 +12,15 @@ compiled_raycast_swift/
 **/.build/
 **/.swiftpm/
 
+# IDE and editor files
+.idea/
+.vscode/
+*.xcodeproj/
+*.xcworkspace/
+*.xcuserstate
+*.swp
+*~
+
 # Local audit output
 .gitleaks-report.json
+
