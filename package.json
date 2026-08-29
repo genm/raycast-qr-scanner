@@ -7,6 +7,7 @@
   "icon": "extension-icon.png",
   "author": "genm",
   "license": "MIT",
+  "packageManager": "npm@11.19.1",
   "categories": [
     "Productivity"
   ],
@@ -22,7 +23,7 @@
     "Windows"
   ],
   "engines": {
-    "node": ">=22.22.2"
+    "node": ">=24.20.0"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,
@@ -69,7 +70,8 @@
   "scripts": {
     "build": "ray build -e dist",
     "prebuild": "node scripts/check-swift-build-lock.mjs",
-    "check": "npm run check:error-contract && npm run typecheck && npm run lint && npm test && npm run test:swift && npm run build && npm run audit:dependencies",
+    "check": "npm run check:toolchain && npm run check:error-contract && npm run typecheck && npm run lint && npm test && npm run test:swift && npm run build && npm run audit:dependencies",
+    "check:toolchain": "node scripts/check-development-toolchain.mjs",
     "check:error-contract": "node scripts/check-error-code-contract.mjs",
     "audit:dependencies": "npm audit --omit=dev --audit-level=high",
     "dev": "ray develop",
