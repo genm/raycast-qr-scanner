@@ -149,6 +149,10 @@ $graphics = $null
 try {
   $width = $bounds.Right - $bounds.Left
   $height = $bounds.Bottom - $bounds.Top
+  if ($width -le 0 -or $height -le 0) {
+    Write-Output 'WAITING'
+    exit 0
+  }
   $bitmap = New-Object System.Drawing.Bitmap($width, $height)
   $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
   $graphics.CopyFromScreen($bounds.Left, $bounds.Top, 0, 0, (New-Object System.Drawing.Size($width, $height)))
@@ -172,15 +176,31 @@ async function saveClipboardImage(outputPath: string): Promise<void> {
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 
-if (-not [System.Windows.Forms.Clipboard]::ContainsImage()) {
-  throw 'QRSCANNER_CLIPBOARD_NO_IMAGE: The clipboard does not contain an image.'
-}
-
 $image = $null
 try {
-  $image = [System.Windows.Forms.Clipboard]::GetImage()
+  if ([System.Windows.Forms.Clipboard]::ContainsImage()) {
+    $image = [System.Windows.Forms.Clipboard]::GetImage()
+  } elseif ([System.Windows.Forms.Clipboard]::ContainsFileDropList()) {
+    $files = [System.Windows.Forms.Clipboard]::GetFileDropList()
+    $imageExtensions = @('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp', '.tiff')
+    foreach ($file in $files) {
+      $ext = [System.IO.Path]::GetExtension($file).ToLowerInvariant()
+      if ($imageExtensions -contains $ext -and [System.IO.File]::Exists($file)) {
+        $image = [System.Drawing.Image]::FromFile($file)
+        break
+      }
+    }
+  }
+
+  if (-not $image) {
+    throw 'QRSCANNER_CLIPBOARD_NO_IMAGE: The clipboard does not contain an image.'
+  }
+
   $image.Save('${path}', [System.Drawing.Imaging.ImageFormat]::Png)
 } catch {
+  if ($_.Exception.Message -match 'QRSCANNER_') {
+    throw $_
+  }
   throw ('QRSCANNER_IMAGE_CONVERSION_FAILED: ' + $_.Exception.Message)
 } finally {
   if ($image) { $image.Dispose() }

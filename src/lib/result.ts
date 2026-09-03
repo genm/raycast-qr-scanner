@@ -73,13 +73,25 @@ export function parseWifiPayload(value: string): WifiPayload | undefined {
     if (key === "H") parsed.hidden = fieldValue.toLowerCase() === "true";
   }
 
+  if (!parsed.ssid && !parsed.password && !parsed.authentication) {
+    return undefined;
+  }
+
   return parsed;
 }
 
+function safeDecodeURIComponent(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 function titleForURL(url: URL, kind: ResultKind): string {
-  if (kind === "email") return decodeURIComponent(url.pathname);
-  if (kind === "phone") return decodeURIComponent(url.pathname);
-  return url.hostname || url.toString();
+  if (kind === "email") return safeDecodeURIComponent(url.pathname);
+  if (kind === "phone") return safeDecodeURIComponent(url.pathname);
+  return url.host || url.hostname || url.toString();
 }
 
 function splitEscaped(value: string, separator: string): string[] {
