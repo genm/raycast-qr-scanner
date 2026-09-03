@@ -19,6 +19,21 @@ describe("classifyScanResult", () => {
     expect(result.kind).toBe("text");
     expect(result.openTarget).toBeUndefined();
   });
+
+  it("preserves ports in URL titles", () => {
+    const result = classifyScanResult({ value: "http://localhost:3000/test", source: "screen" });
+
+    expect(result.kind).toBe("url");
+    expect(result.title).toBe("localhost:3000");
+  });
+
+  it("safely handles malformed percent encoding in mailto URLs", () => {
+    const result = classifyScanResult({ value: "mailto:user%99@example.test", source: "screen" });
+
+    expect(result.kind).toBe("email");
+    expect(result.title).toBe("user%99@example.test");
+    expect(result.openTarget).toBe("mailto:user%99@example.test");
+  });
 });
 
 describe("deduplicateScanResults", () => {
@@ -44,5 +59,12 @@ describe("parseWifiPayload", () => {
       password: "p:ass;word",
       hidden: true,
     });
+  });
+
+  it("returns undefined when no SSID, password, or authentication is present", () => {
+    expect(parseWifiPayload("WIFI:")).toBeUndefined();
+    expect(parseWifiPayload("WIFI:;")).toBeUndefined();
+    expect(parseWifiPayload("WIFI:H:true;")).toBeUndefined();
+    expect(parseWifiPayload("WIFI: not a wifi payload")).toBeUndefined();
   });
 });

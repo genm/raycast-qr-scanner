@@ -74,14 +74,16 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_16.4.app
 
       # PR caches are scoped to their merge ref, so untrusted changes cannot overwrite main's cache.
+      # Only portable package checkouts and SPM build directories are cached; Xcode DerivedData intermediates
+      # in .raycast-swift-build/Build are omitted to prevent stale build databases and cross-host plugin failures.
       - name: Restore Swift build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            swift/.raycast-swift-build
+            swift/.raycast-swift-build/SourcePackages
             swift/ScannerKit/.build
             cli/.build
-          key: swift-${{ runner.os }}-${{ runner.arch }}-xcode-16.4-${{ hashFiles('swift/Package.resolved', 'swift/**/Package.swift', 'cli/Package.swift') }}
+          key: swift-spm-${{ runner.os }}-${{ runner.arch }}-xcode-16.4-${{ hashFiles('swift/Package.resolved', 'swift/**/Package.swift', 'cli/Package.swift') }}
 
       - name: Install dependencies
         run: npm ci

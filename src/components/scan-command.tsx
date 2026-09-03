@@ -78,13 +78,36 @@ function ResultItem({ result }: { result: ClassifiedScanResult }) {
 }
 
 function ResultActions({ result }: { result: ClassifiedScanResult }) {
+  const openTitle =
+    result.kind === "url"
+      ? "Open in Browser"
+      : result.kind === "email"
+        ? "Compose Email"
+        : result.kind === "phone"
+          ? "Call Phone"
+          : "Open";
+  const openIcon =
+    result.kind === "url"
+      ? Icon.Globe
+      : result.kind === "email"
+        ? Icon.Envelope
+        : result.kind === "phone"
+          ? Icon.Phone
+          : Icon.ArrowNe;
+
   return (
     <ActionPanel>
-      {result.openTarget && (
-        <Action title="Open" icon={Icon.ArrowNe} onAction={() => open(result.openTarget as string)} />
-      )}
-      <Action.CopyToClipboard title="Copy QR Content" content={result.value} />
-      {result.wifi?.password && <Action.CopyToClipboard title="Copy Wi-Fi Password" content={result.wifi.password} />}
+      <ActionPanel.Section>
+        {result.openTarget && (
+          <Action title={openTitle} icon={openIcon} onAction={() => open(result.openTarget as string)} />
+        )}
+        <Action.Paste content={result.value} />
+      </ActionPanel.Section>
+      <ActionPanel.Section title="Copy to Clipboard">
+        <Action.CopyToClipboard title="Copy QR Content" content={result.value} />
+        {result.wifi?.password && <Action.CopyToClipboard title="Copy Wi-Fi Password" content={result.wifi.password} />}
+        {result.wifi?.ssid && <Action.CopyToClipboard title="Copy Wi-Fi Network Name" content={result.wifi.ssid} />}
+      </ActionPanel.Section>
     </ActionPanel>
   );
 }
@@ -108,7 +131,7 @@ function wifiMarkdown(result: ClassifiedScanResult): string {
     `**Password:** ${escapeMarkdown(wifi.password ?? "Not specified")}`,
     `**Hidden:** ${wifi.hidden ? "Yes" : "No"}`,
     "",
-    "Use the action panel to copy the full QR content or password.",
+    "Use the action panel to copy the full QR content, network name, or password.",
   ];
   return lines.join("\n\n");
 }
