@@ -67,7 +67,7 @@
     "@raycast/eslint-config": "2.2.0",
     "@types/node": "26.3.0",
     "@types/pngjs": "6.0.5",
-    "@types/qrcode": "1.5.5",
+    "@types/qrcode": "1.5.6",
     "@types/react": "19.2.18",
     "eslint": "10.9.1",
     "prettier": "3.9.6",
