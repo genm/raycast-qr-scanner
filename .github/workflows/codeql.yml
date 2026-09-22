@@ -13,8 +13,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: codeql-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep the scheduled full scan separate from the main-branch baseline.
+  group: codeql-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   analyze:
@@ -29,8 +30,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - language: actions
+            runner: ubuntu-24.04
+            timeout: 15
+            build-mode: none
+
           - language: javascript-typescript
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             timeout: 15
             build-mode: none
 
@@ -46,15 +52,15 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
-
       - name: Select Xcode 16.4
         if: matrix.language == 'swift'
         run: sudo xcode-select -s /Applications/Xcode_16.4.app
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
 
       - name: Build Swift targets for CodeQL
         if: matrix.language == 'swift'
@@ -65,6 +71,6 @@ jobs:
           swift build --package-path cli
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           category: "/language:${{ matrix.language }}"
