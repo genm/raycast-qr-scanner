@@ -36,7 +36,8 @@ jobs:
 
           - language: swift
             runner: macos-15
-            timeout: 30
+            # A cold, CodeQL-instrumented Swift bridge build can exceed the normal CI budget.
+            timeout: 60
             build-mode: manual
 
     steps:
@@ -51,27 +52,17 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
 
-      - name: Set up Node.js
-        if: matrix.language == 'swift'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .node-version
-          cache: npm
-
       - name: Select Xcode 16.4
         if: matrix.language == 'swift'
         run: sudo xcode-select -s /Applications/Xcode_16.4.app
 
-      - name: Install dependencies
-        if: matrix.language == 'swift'
-        run: npm ci
-
       - name: Build Swift targets for CodeQL
         if: matrix.language == 'swift'
         run: |
-          swift build --package-path swift/ScannerKit
+          # CodeQL needs compiler-visible Swift sources, not Raycast packaging.
+          # CI still runs `npm run build` to validate the Store build separately.
+          swift build --package-path swift
           swift build --package-path cli
-          npm run build
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
