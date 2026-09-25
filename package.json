@@ -73,7 +73,7 @@
     "prettier": "3.9.6",
     "qrcode": "1.5.4",
     "typescript": "6.0.3",
-    "vitest": "4.1.11"
+    "vitest": "5.0.1"
   },
   "scripts": {
     "build": "ray build -e dist",
