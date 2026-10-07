@@ -1,9 +1,7 @@
 import { readFileSync } from "node:fs";
 
-const [
-  swiftPath = "swift/ScannerKit/Sources/QRScannerCore/Models.swift",
-  typescriptPath = "src/lib/native-error.ts",
-] = process.argv.slice(2);
+const [swiftPath = "swift/ScannerKit/Sources/QRScannerCore/Models.swift", typescriptPath = "src/lib/native-error.ts"] =
+  process.argv.slice(2);
 const codePattern = /QRSCANNER_[A-Z_]+/g;
 
 function extractCodes(path) {
