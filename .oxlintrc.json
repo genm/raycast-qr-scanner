@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "eslint",
+    "typescript",
+    "unicorn",
+    "oxc",
+    "react",
+    "vitest"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "ignorePatterns": [
+    "dist/**",
+    "test-results/**",
+    "**/node_modules/**",
+    "**/.build/**",
+    "**/.swiftpm/**",
+    "**/vendor/**",
+    "**/.raycast-swift-build/**",
+    "**/compiled_raycast_swift/**",
+    "**/raycast-env.d.ts"
+  ],
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "unicorn/no-array-sort": "off"
+  }
+}

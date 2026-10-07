@@ -73,22 +73,30 @@
     "prettier": "3.9.9",
     "qrcode": "1.5.4",
     "typescript": "6.0.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "oxfmt": "0.72.0",
+    "oxlint": "1.87.0"
   },
   "scripts": {
     "build": "ray build -e dist",
     "prebuild": "node scripts/check-swift-build-lock.mjs",
-    "check": "npm run check:toolchain && npm run check:error-contract && npm run typecheck && npm run lint && npm test && npm run test:swift && npm run build && npm run audit:dependencies",
+    "check": "npm run check:toolchain && npm run check:error-contract && npm run typecheck && npm run format:check && npm run lint && npm test && npm run test:swift && npm run build && npm run audit:dependencies",
     "check:toolchain": "node scripts/check-development-toolchain.mjs",
     "check:error-contract": "node scripts/check-error-code-contract.mjs",
     "audit:dependencies": "npm audit --omit=dev --audit-level=high",
     "dev": "ray develop",
-    "fix-lint": "ray lint --fix",
-    "lint": "ray lint",
+    "fix-lint": "npm run fix-lint:oxc && npm run fix-lint:raycast",
+    "lint": "npm run lint:oxc && npm run lint:raycast",
     "prepublishOnly": "echo \"\\\"Error: cannot publish this package directly to npm\\\"\" && exit 1",
     "publish": "ray publish",
     "test": "vitest run --reporter=json --outputFile=test-results/vitest.json",
     "typecheck": "tsc --noEmit",
-    "test:swift": "mkdir -p test-results && swift test --package-path swift/ScannerKit --parallel --xunit-output test-results/swift.xml && swift test --package-path cli --parallel --xunit-output test-results/swift-cli.xml"
+    "test:swift": "mkdir -p test-results && swift test --package-path swift/ScannerKit --parallel --xunit-output test-results/swift.xml && swift test --package-path cli --parallel --xunit-output test-results/swift-cli.xml",
+    "format": "oxfmt --write '**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}'",
+    "format:check": "oxfmt --check '**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}'",
+    "lint:oxc": "oxlint",
+    "lint:raycast": "ray lint",
+    "fix-lint:oxc": "oxlint --fix",
+    "fix-lint:raycast": "ray lint --fix"
   }
 }

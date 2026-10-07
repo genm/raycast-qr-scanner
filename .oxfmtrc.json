@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 120,
+  "ignorePatterns": [
+    "dist/**",
+    "test-results/**",
+    "**/node_modules/**",
+    "**/.build/**",
+    "**/.swiftpm/**",
+    "**/vendor/**",
+    "**/.raycast-swift-build/**",
+    "**/compiled_raycast_swift/**",
+    "**/raycast-env.d.ts"
+  ]
+}

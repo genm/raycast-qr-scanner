@@ -8,7 +8,7 @@ Run the repository-wide check from the project root:
 mise run check
 ```
 
-This task validates GitHub Actions with Actionlint, then runs `npm run check`, which performs TypeScript type checking, Raycast linting, TypeScript tests, Swift tests, a production extension build, and a high-severity production-dependency audit. Run it on macOS, and stop `npm run dev` before starting because debug and release builds share one Swift build database. Running `npm run check` directly covers the application checks when the declared Node.js and npm versions are already active.
+This task validates GitHub Actions with Actionlint, then runs `npm run check`, which performs the Oxfmt check, Oxlint, Raycast linting, TypeScript type checking, TypeScript and Swift tests, a production extension build, and a high-severity production dependency audit. Run it on macOS, and stop `npm run dev` before starting because debug and release builds share one Swift build database. Running `npm run check` directly covers the application checks when the declared Node.js and npm versions are already active.
 
 Machine-readable results are written to:
 
@@ -17,6 +17,16 @@ Machine-readable results are written to:
 - `test-results/swift-cli.xml` for CLI Swift xUnit results
 
 Judge the run from those result files and the command exit status. A timeout, missing file, skipped build, or dependency-provider failure is not a passing result.
+
+## JavaScript and TypeScript tooling
+
+Oxlint `1.87.0` and Oxfmt `0.72.0` are pinned in `package.json` and `package-lock.json` (versions checked against npm on 2026-10-07). Oxlint is the primary general linter, with the `eslint`, `typescript`, `unicorn`, and `oxc` plugins plus `react` and `vitest` for this extension's TSX and tests. The `correctness` and `suspicious` rule categories are errors. `react/react-in-jsx-scope` is disabled because `tsconfig.json` uses the automatic `react-jsx` runtime. `unicorn/no-array-sort` is disabled because the only current call sorts a fresh local `readdir()` result, so it does not mutate shared state. Run `npm run lint:oxc` directly for this path.
+
+`npm run lint:raycast` preserves `ray lint`, which validates the extension manifest and assets and runs the Raycast ESLint configuration and plugin rules. It also runs the ESLint and Prettier checks expected by the Raycast CLI. `npm run lint` runs Oxlint first, then this Raycast route; `npm run check` includes the same full lint command. Keeping the Raycast route preserves project-specific checks that Oxlint does not provide.
+
+`npm run format` and `npm run format:check` use Oxfmt for repository JavaScript and TypeScript files matching `**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}`. The non-mutating format check is part of `npm run check`. Oxfmt uses a 120-character print width to match the existing formatter setting. Swift files, Markdown, YAML, JSON, and lockfiles are outside this formatting glob. The Oxc configs exclude `dist/`, `test-results/`, `node_modules/`, nested Swift `.build` and `.swiftpm` directories, vendored files, Raycast generated build output, and `raycast-env.d.ts`; VCS outputs are ignored by the tools and both tools respect `.gitignore`.
+
+Oxfmt's native formatter supports JavaScript, JSX, TypeScript, and TSX, covering all current source and test files without a Prettier-backed framework mode. Prettier remains installed because it is a peer dependency of `@raycast/eslint-config` and the Raycast CLI still runs its check. See the [Oxlint docs](https://oxc.rs/docs/guide/usage/linter), [Oxfmt language support](https://oxc.rs/docs/guide/usage/formatter/language-support), and [Raycast ESLint docs](https://developers.raycast.com/information/developer-tools/eslint).
 
 ## Camera CI matrix
 
