@@ -1,11 +1,7 @@
 import { readFileSync } from "node:fs";
 
-const [
-  packagePath = "package.json",
-  nodeVersionPath = ".node-version",
-  misePath = "mise.toml",
-  npmrcPath = ".npmrc",
-] = process.argv.slice(2);
+const [packagePath = "package.json", nodeVersionPath = ".node-version", misePath = "mise.toml", npmrcPath = ".npmrc"] =
+  process.argv.slice(2);
 const packageJson = JSON.parse(readFileSync(packagePath, "utf8"));
 const nodeVersion = readFileSync(nodeVersionPath, "utf8").trim();
 const miseConfig = readFileSync(misePath, "utf8");
