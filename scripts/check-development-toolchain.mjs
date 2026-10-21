@@ -18,8 +18,8 @@ const requiredNpmrc = ["engine-strict=true", "save-exact=true", "strict-allow-sc
 const missingNpmrc = requiredNpmrc.filter((entry) => !npmrc.has(entry));
 
 const errors = [];
-if (packageJson.engines?.node !== `>=${nodeVersion}`) {
-  errors.push(".node-version must match the minimum Node.js version in package.json");
+if (packageJson.engines?.node !== `^${nodeVersion}`) {
+  errors.push("package.json engines.node must be a caret range matching .node-version");
 }
 if (!declaredNpm) {
   errors.push('packageManager must pin npm as "npm@<exact-version>"');
