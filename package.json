@@ -75,7 +75,7 @@
     "typescript": "6.0.3",
     "vitest": "4.1.11",
     "oxfmt": "0.73.0",
-    "oxlint": "1.87.0"
+    "oxlint": "1.89.0"
   },
   "scripts": {
     "build": "ray build -e dist",
